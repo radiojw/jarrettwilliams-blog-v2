@@ -398,14 +398,16 @@ function renderAbout() {
       <p class="eyebrow">About</p>
       <h1>A working notebook for infrastructure problems.</h1>
       <p>This site is a running notebook for the operational side of IT, the systems engineering work behind Azure environments, and the practical side of AI automation that has to work outside of demos.</p>
-      <p>I work across IT Operations and as a Staff Systems Engineer, with a focus on infrastructure, reliability, automation, and the kinds of technical decisions that only really make sense once they have been tested in production.</p>
-      <p>That mix of work shows up here as endpoint administration, identity cleanup, networking, datacenter visits, Azure work, and small but useful automations that save time when repeated work starts piling up.</p>
+      <p>I work across IT Operations and staff-level systems engineering, with a background that spans healthcare, banking, higher education, and large-scale technology environments. Most of the work has lived where infrastructure, reliability, and practical execution all have to meet.</p>
+      <p>That mix shows up here as endpoint administration, identity cleanup, networking, datacenter visits, Azure work, cloud migrations, and small but useful automations that save time when repeated work starts piling up.</p>
       <h2>A few professional highlights</h2>
       <p>The thread that runs through most of my work is building practical systems that hold up under real operational pressure, not just in ideal lab conditions.</p>
       <ul>
-        <li>Working at the intersection of infrastructure and innovation, with hands-on experience across both day-to-day IT operations and staff-level systems engineering.</li>
-        <li>Designing and refining Azure-based systems and automation workflows that make recurring work more reliable, more visible, and easier to support.</li>
-        <li>Turning operational lessons into usable documentation, repeatable processes, and lightweight tools that help teams move faster without creating extra complexity.</li>
+        <li>15+ years of infrastructure experience across cloud, networking, data center operations, and highly regulated environments.</li>
+        <li>Leading infrastructure strategy for healthcare systems, including enterprise network, voice, security, and storage administration.</li>
+        <li>Managing cloud and identity modernization work, including legacy platform migrations and OKTA rollout in banking.</li>
+        <li>Building operational programs at Amazon, from deployment strategy for early Amazon Go systems to device-lab infrastructure and vendor support workflows.</li>
+        <li>Delivering large-scale infrastructure improvements such as campus data center commissioning, phone-system migrations, and security and ITSM process rollouts.</li>
       </ul>
       <p>The goal is simple: leave behind useful write-ups that save someone else a few hours of trial, error, and tab-hoarding.</p>
     </div>

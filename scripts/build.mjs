@@ -277,8 +277,6 @@ function pageTemplate({ title, description, content, canonicalPath }) {
           <a href="/">Home</a>
           <a href="/blog/">Blog</a>
           <a href="/about/">About</a>
-          <a href="/cookies/">Cookies</a>
-          <a href="/privacy/">Privacy</a>
         </nav>
       </header>
       <main class="site-main">
@@ -288,6 +286,7 @@ function pageTemplate({ title, description, content, canonicalPath }) {
         <p>Copyright 2026 jarrettwilliams.com</p>
         <div class="footer-links">
           <a href="/cookies/">Cookies</a>
+          <a href="/privacy/">Privacy</a>
           <a href="${site.linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
         </div>
       </footer>

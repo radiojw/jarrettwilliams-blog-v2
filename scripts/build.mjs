@@ -400,6 +400,13 @@ function renderAbout() {
       <p>This site is a running notebook for the operational side of IT, the systems engineering work behind Azure environments, and the practical side of AI automation that has to work outside of demos.</p>
       <p>I work across IT Operations and as a Staff Systems Engineer, with a focus on infrastructure, reliability, automation, and the kinds of technical decisions that only really make sense once they have been tested in production.</p>
       <p>That mix of work shows up here as endpoint administration, identity cleanup, networking, datacenter visits, Azure work, and small but useful automations that save time when repeated work starts piling up.</p>
+      <h2>A few professional highlights</h2>
+      <p>The thread that runs through most of my work is building practical systems that hold up under real operational pressure, not just in ideal lab conditions.</p>
+      <ul>
+        <li>Working at the intersection of infrastructure and innovation, with hands-on experience across both day-to-day IT operations and staff-level systems engineering.</li>
+        <li>Designing and refining Azure-based systems and automation workflows that make recurring work more reliable, more visible, and easier to support.</li>
+        <li>Turning operational lessons into usable documentation, repeatable processes, and lightweight tools that help teams move faster without creating extra complexity.</li>
+      </ul>
       <p>The goal is simple: leave behind useful write-ups that save someone else a few hours of trial, error, and tab-hoarding.</p>
     </div>
   </section>`

@@ -338,8 +338,8 @@ function renderHome(posts) {
     <div class="panel panel-copy">
       <p class="eyebrow">About</p>
       <h2>Built for useful answers, not filler.</h2>
-      <p>This site is a running notebook for the operational side of IT: the tickets, migrations, cleanups, and field work that rarely fit neatly into vendor docs.</p>
-      <p>This rebuild is fully static, which means no runtime API, no client-side post loader, and a much simpler deployment path for the final production domain.</p>
+      <p>This site is a running notebook for the operational side of IT, the systems engineering work behind Azure environments, and the practical side of AI automation that has to work outside of demos.</p>
+      <p>I work across IT Operations and as a Staff Systems Engineer, so the write-ups here tend to come from real migrations, identity cleanup, infrastructure decisions, automation work, and the field notes that rarely fit neatly into vendor docs.</p>
       <div class="button-row">
         <a class="button button-primary" href="/blog/">Read the blog</a>
         <a class="button" href="/about/">More about Jarrett</a>

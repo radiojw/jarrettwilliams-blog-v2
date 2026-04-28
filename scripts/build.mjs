@@ -274,7 +274,7 @@ function pageTemplate({ title, description, content, canonicalPath }) {
       <header class="site-header">
         <div class="brand-block">
           <a class="brand" href="/">Jarrett Williams</a>
-          <p class="tagline">IT operations, infrastructure, and field notes</p>
+          <p class="tagline">IT operations, systems engineering, Azure, and practical automation</p>
         </div>
         <nav class="nav">
           <a href="/">Home</a>

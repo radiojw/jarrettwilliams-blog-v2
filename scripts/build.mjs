@@ -6,6 +6,7 @@ const contentDir = path.join(rootDir, "content", "posts")
 const distDir = path.join(rootDir, "dist")
 const assetsDir = path.join(distDir, "assets")
 const stylesPath = path.join(rootDir, "src", "styles.css")
+const consentScriptPath = path.join(assetsDir, "consent.js")
 
 const site = {
   title: "Jarrett Williams",
@@ -15,6 +16,8 @@ const site = {
   author: "Jarrett Williams",
   linkedin: "https://www.linkedin.com/in/jarrettwilliams/",
 }
+
+const consentStorageKey = "jarrett_cookie_choice"
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true })
@@ -261,6 +264,7 @@ function pageTemplate({ title, description, content, canonicalPath }) {
     <meta property="og:url" content="${canonicalUrl}" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="stylesheet" href="/assets/styles.css" />
+    <script src="/assets/consent.js" defer></script>
   </head>
   <body>
     <div class="site-shell">
@@ -273,6 +277,7 @@ function pageTemplate({ title, description, content, canonicalPath }) {
           <a href="/">Home</a>
           <a href="/blog/">Blog</a>
           <a href="/about/">About</a>
+          <a href="/cookies/">Cookies</a>
           <a href="/privacy/">Privacy</a>
         </nav>
       </header>
@@ -280,10 +285,24 @@ function pageTemplate({ title, description, content, canonicalPath }) {
         ${content}
       </main>
       <footer class="site-footer">
-        <p>Static rebuild for clean publishing and simple hosting.</p>
-        <a href="${site.linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        <p>Copyright 2026 jarrettwilliams.com</p>
+        <div class="footer-links">
+          <a href="/cookies/">Cookies</a>
+          <a href="${site.linkedin}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+        </div>
       </footer>
     </div>
+    <section class="cookie-banner" data-cookie-banner hidden>
+      <div class="cookie-copy">
+        <p class="cookie-title">Cookie choices</p>
+        <p>This site uses essential site storage and may add optional measurement later. Choose what to allow.</p>
+      </div>
+      <div class="cookie-actions">
+        <a class="button" href="/cookies/">View policy</a>
+        <button class="button" type="button" data-cookie-choice="deny">Deny</button>
+        <button class="button button-primary" type="button" data-cookie-choice="accept">Accept</button>
+      </div>
+    </section>
   </body>
 </html>`
 }
@@ -399,6 +418,57 @@ function renderPrivacy() {
   </section>`
 }
 
+function renderCookies() {
+  return `<section class="panel post-panel">
+    <p class="eyebrow">Cookies</p>
+    <h1>Cookie policy</h1>
+    <div class="post-content">
+      <p>This site is a static publishing site and keeps its data collection intentionally light.</p>
+      <p>The site may use essential browser storage to remember choices such as your cookie preference. That storage helps the site avoid showing the same prompt on every visit.</p>
+      <p>No advertising, profiling, or third-party tracking cookies are intentionally loaded by this site today.</p>
+      <p>If optional analytics or similar tools are added later, they should only run after an accepted choice and this page should be updated to describe them clearly.</p>
+      <p>You can change your choice at any time by clearing site storage in your browser and revisiting the site.</p>
+    </div>
+  </section>`
+}
+
+function writeConsentScript() {
+  const script = `(() => {
+  const storageKey = ${JSON.stringify(consentStorageKey)};
+  const banner = document.querySelector("[data-cookie-banner]");
+  if (!banner) return;
+
+  const applyChoice = (choice) => {
+    try {
+      localStorage.setItem(storageKey, choice);
+    } catch {}
+    document.documentElement.dataset.cookieChoice = choice;
+    banner.hidden = true;
+  };
+
+  let existingChoice = "";
+  try {
+    existingChoice = localStorage.getItem(storageKey) || "";
+  } catch {}
+
+  if (existingChoice === "accept" || existingChoice === "deny") {
+    document.documentElement.dataset.cookieChoice = existingChoice;
+    banner.hidden = true;
+    return;
+  }
+
+  banner.hidden = false;
+
+  banner.querySelectorAll("[data-cookie-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      applyChoice(button.getAttribute("data-cookie-choice") || "deny");
+    });
+  });
+})();`
+
+  fs.writeFileSync(consentScriptPath, script)
+}
+
 function writePage(relativePath, html) {
   const outputPath = path.join(distDir, relativePath)
   ensureDir(path.dirname(outputPath))
@@ -410,6 +480,7 @@ function build() {
   cleanDir(distDir)
   ensureDir(assetsDir)
   fs.copyFileSync(stylesPath, path.join(assetsDir, "styles.css"))
+  writeConsentScript()
 
   writePage(
     "index.html",
@@ -463,6 +534,16 @@ function build() {
     })
   )
 
+  writePage(
+    path.join("cookies", "index.html"),
+    pageTemplate({
+      title: `Cookies | ${site.title}`,
+      description: "Cookie policy for jarrettwilliams.com",
+      canonicalPath: "/cookies/",
+      content: renderCookies(),
+    })
+  )
+
   fs.writeFileSync(
     path.join(distDir, "robots.txt"),
     `User-agent: *\nAllow: /\nSitemap: ${site.url}/sitemap.xml\n`
@@ -472,6 +553,7 @@ function build() {
     "",
     "/blog/",
     "/about/",
+    "/cookies/",
     "/privacy/",
     ...posts.map((post) => `/blog/${post.slug}/`),
   ]

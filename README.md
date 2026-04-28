@@ -18,13 +18,13 @@ npm run new-post -- "Your Post Title"
 
 ## Deployment
 
-Build locally or on the server, then publish the contents of `dist` to the site root.
+Cloudflare Pages hosts the production site. Pushes to `main` build the site and deploy `dist` to the Pages project.
 
-For a simple static deployment:
+For a manual local build:
 
 1. Run `npm run build`
-2. Copy the contents of `dist` into `/httpdocs`
-3. Remove any old app runtime files that should no longer be served
+2. Review the output in `dist`
+3. Publish `dist` if you need an ad hoc deploy
 
 ## Notes
 

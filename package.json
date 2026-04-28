@@ -1,0 +1,13 @@
+{
+  "name": "jarrettwilliams-blog-v2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static blog site generator for jarrettwilliams.com",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "new-post": "node scripts/new-post.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

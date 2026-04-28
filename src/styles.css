@@ -311,6 +311,23 @@ h3 {
   margin: 0 0 18px;
 }
 
+.post-content figure {
+  margin: 28px 0;
+}
+
+.post-content figure img {
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+}
+
+.post-content figcaption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 .post-content ul,
 .post-content ol {
   margin: 0 0 22px;

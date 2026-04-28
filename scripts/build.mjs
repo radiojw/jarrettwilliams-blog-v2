@@ -8,6 +8,8 @@ const assetsDir = path.join(distDir, "assets")
 const stylesPath = path.join(rootDir, "src", "styles.css")
 const consentScriptPath = path.join(assetsDir, "consent.js")
 const faviconPath = path.join(rootDir, "src", "favicon.svg")
+const imagesSrcDir = path.join(rootDir, "src", "images")
+const imagesDistDir = path.join(assetsDir, "images")
 
 const site = {
   title: "Jarrett Williams",
@@ -29,6 +31,25 @@ function cleanDir(dirPath) {
     fs.rmSync(dirPath, { recursive: true, force: true })
   }
   ensureDir(dirPath)
+}
+
+function copyDir(sourceDir, destinationDir) {
+  if (!fs.existsSync(sourceDir)) {
+    return
+  }
+
+  ensureDir(destinationDir)
+
+  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
+    const sourcePath = path.join(sourceDir, entry.name)
+    const destinationPath = path.join(destinationDir, entry.name)
+
+    if (entry.isDirectory()) {
+      copyDir(sourcePath, destinationPath)
+    } else {
+      fs.copyFileSync(sourcePath, destinationPath)
+    }
+  }
 }
 
 function escapeHtml(value) {
@@ -493,6 +514,7 @@ function build() {
   ensureDir(assetsDir)
   fs.copyFileSync(stylesPath, path.join(assetsDir, "styles.css"))
   fs.copyFileSync(faviconPath, path.join(distDir, "favicon.svg"))
+  copyDir(imagesSrcDir, imagesDistDir)
   writeConsentScript()
 
   writePage(

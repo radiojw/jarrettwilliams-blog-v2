@@ -397,9 +397,10 @@ function renderAbout() {
     <div class="panel panel-copy">
       <p class="eyebrow">About</p>
       <h1>A working notebook for infrastructure problems.</h1>
-      <p>I use this site to document the practical side of IT work: endpoint administration, identity cleanup, datacenter visits, networking, and the one-off fixes that never seem to make it into official docs.</p>
+      <p>This site is a running notebook for the operational side of IT, the systems engineering work behind Azure environments, and the practical side of AI automation that has to work outside of demos.</p>
+      <p>I work across IT Operations and as a Staff Systems Engineer, with a focus on infrastructure, reliability, automation, and the kinds of technical decisions that only really make sense once they have been tested in production.</p>
+      <p>That mix of work shows up here as endpoint administration, identity cleanup, networking, datacenter visits, Azure work, and small but useful automations that save time when repeated work starts piling up.</p>
       <p>The goal is simple: leave behind useful write-ups that save someone else a few hours of trial, error, and tab-hoarding.</p>
-      <p>This version keeps the stack intentionally small. Posts live in files, pages are generated statically, and deployment is just static files.</p>
     </div>
   </section>`
 }

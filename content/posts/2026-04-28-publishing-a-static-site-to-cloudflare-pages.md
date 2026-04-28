@@ -148,4 +148,4 @@ npx wrangler pages deploy dist --project-name your-project-name
 
 <p>If a website mostly exists to publish pages, make publishing pages the easy part.</p>
 
-<p>Static output plus Cloudflare Pages is not the answer for everything, but for a straightforward blog or personal site, it is often the answer that stays out of your way.</p>
+<p>Static output plus Cloudflare Pages is not the answer for everything, but for a straightforward blog or personal site, it usually gets the job done without turning deployment into a whole ordeal.</p>

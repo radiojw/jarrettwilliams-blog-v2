@@ -7,6 +7,7 @@ const distDir = path.join(rootDir, "dist")
 const assetsDir = path.join(distDir, "assets")
 const stylesPath = path.join(rootDir, "src", "styles.css")
 const consentScriptPath = path.join(assetsDir, "consent.js")
+const faviconPath = path.join(rootDir, "src", "favicon.svg")
 
 const site = {
   title: "Jarrett Williams",
@@ -263,6 +264,8 @@ function pageTemplate({ title, description, content, canonicalPath }) {
     <meta property="og:type" content="website" />
     <meta property="og:url" content="${canonicalUrl}" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/assets/styles.css" />
     <script src="/assets/consent.js" defer></script>
   </head>
@@ -489,6 +492,7 @@ function build() {
   cleanDir(distDir)
   ensureDir(assetsDir)
   fs.copyFileSync(stylesPath, path.join(assetsDir, "styles.css"))
+  fs.copyFileSync(faviconPath, path.join(distDir, "favicon.svg"))
   writeConsentScript()
 
   writePage(

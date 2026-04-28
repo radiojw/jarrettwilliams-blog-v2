@@ -57,6 +57,48 @@ assets/styles.css
 
 <p>That output folder is the thing you care about. Everything before it is just preparation.</p>
 
+<p>That is also the point where static sites start to make more sense operationally. You are no longer shipping a whole project with dev dependencies, draft files, and build scripts attached. You are shipping the finished website.</p>
+
+## What "building" the site really means
+
+<p>If you are newer to static sites, the build step can sound more dramatic than it is. In practice, building just means taking your source files and turning them into browser-ready output.</p>
+
+<p>Maybe that means markdown gets turned into HTML. Maybe templates get filled in. Maybe CSS gets copied into the right place. The end result is still the same: a folder of normal files that a browser can read directly.</p>
+
+<p>That is why I like checking the output folder after every meaningful change. If the site builds and the output looks right, you are already most of the way to a working deploy.</p>
+
+## Two ways to publish to Cloudflare Pages
+
+<p>There are really two common ways to get a site onto Cloudflare Pages.</p>
+
+<p>The first is to connect a Git repository. In that model, Cloudflare watches your branch, runs the build command you configured, and publishes the output when you push.</p>
+
+<p>The second is direct upload. In that model, you build the site yourself and upload the finished output folder using a tool like Wrangler.</p>
+
+<p>Neither option is wrong. The Git-connected route is convenient when the repo and build settings are stable. The direct-upload route is nice when you want tighter control over what goes live, or when you are working with a very custom setup and would rather not debug the build environment twice.</p>
+
+## What actually gets pushed
+
+<p>This is the part that clears up a lot of confusion: Cloudflare Pages does not need your whole project in order to serve a static site. It needs the built output.</p>
+
+<p>If you are doing a Git-connected deployment, Cloudflare checks out the repo and builds it on its side. If you are doing a direct deployment, you are handing Cloudflare the already-built files yourself.</p>
+
+<p>That means the thing you should think about before pushing is not "Did I upload every source file?" It is "Did the site build cleanly, and does the output folder contain the pages I actually want people to see?"</p>
+
+## A practical direct-deploy flow
+
+<p>For a small custom site, a direct deploy can stay very simple:</p>
+
+```bash
+npm install
+npm run build
+npx wrangler pages deploy dist --project-name your-project-name
+```
+
+<p>The first command installs what the project needs. The second produces the static output. The third publishes that output to the Pages project.</p>
+
+<p>If I am troubleshooting, I usually stop after the build and inspect the <code>dist</code> folder first. It is much easier to fix a missing page or bad template locally than to keep redeploying and guessing.</p>
+
 ## Where people usually make it harder than it needs to be
 
 <p>A common mistake is trying to deploy the source project exactly like an app server project. That usually leads to extra setup, extra credentials, and extra ways to fail.</p>
@@ -85,6 +127,8 @@ npx wrangler pages deploy dist --project-name your-project-name
 <p>That command tells Cloudflare to take the already-built files in <code>dist</code> and publish them. You are not asking Cloudflare to guess how your project works. You are handing it the finished result.</p>
 
 <p>That is usually the safer approach for small custom sites.</p>
+
+<p>If you are using a Git-based deploy instead, the same principle still applies. You just move the build step into Cloudflare's side of the workflow by telling it what command to run and which output directory to publish.</p>
 
 ## Domain cutover is where people get nervous
 

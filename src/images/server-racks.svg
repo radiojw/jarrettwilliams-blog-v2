@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-label="Server rack illustration">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111827" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)" />
+  <g>
+    <rect x="170" y="110" width="270" height="670" rx="18" fill="#0b1220" stroke="#334155" stroke-width="6"/>
+    <rect x="490" y="110" width="270" height="670" rx="18" fill="#0b1220" stroke="#334155" stroke-width="6"/>
+    <rect x="810" y="110" width="220" height="670" rx="18" fill="#0b1220" stroke="#334155" stroke-width="6"/>
+  </g>
+  <g fill="#1f2937">
+    <rect x="200" y="150" width="210" height="90" rx="10"/>
+    <rect x="200" y="270" width="210" height="90" rx="10"/>
+    <rect x="200" y="390" width="210" height="90" rx="10"/>
+    <rect x="200" y="510" width="210" height="90" rx="10"/>
+    <rect x="200" y="630" width="210" height="90" rx="10"/>
+    <rect x="520" y="150" width="210" height="90" rx="10"/>
+    <rect x="520" y="270" width="210" height="90" rx="10"/>
+    <rect x="520" y="390" width="210" height="90" rx="10"/>
+    <rect x="520" y="510" width="210" height="90" rx="10"/>
+    <rect x="520" y="630" width="210" height="90" rx="10"/>
+  </g>
+  <g fill="#7dd3fc">
+    <circle cx="380" cy="195" r="9"/>
+    <circle cx="380" cy="315" r="9"/>
+    <circle cx="380" cy="435" r="9"/>
+    <circle cx="380" cy="555" r="9"/>
+    <circle cx="380" cy="675" r="9"/>
+    <circle cx="700" cy="195" r="9"/>
+    <circle cx="700" cy="315" r="9"/>
+    <circle cx="700" cy="435" r="9"/>
+    <circle cx="700" cy="555" r="9"/>
+    <circle cx="700" cy="675" r="9"/>
+  </g>
+  <g stroke="#f97316" stroke-width="6" fill="none" opacity="0.85">
+    <path d="M860 220c80 10 90 80 120 110" />
+    <path d="M860 320c75 12 95 70 125 100" />
+    <path d="M860 430c82 6 88 60 124 88" />
+    <path d="M860 540c76 12 94 66 123 96" />
+  </g>
+</svg>

@@ -14,10 +14,12 @@ const imagesDistDir = path.join(assetsDir, "images")
 const site = {
   title: "Jarrett Williams",
   description:
-    "Practical notes on IT operations, networking, endpoint management, and datacenter work.",
+    "Practical notes on IT operations, systems engineering, Azure, automation, networking, and datacenter work.",
   url: "https://jarrettwilliams.com",
   author: "Jarrett Williams",
+  locale: "en_US",
   linkedin: "https://www.linkedin.com/in/jarrettwilliams/",
+  socialImagePath: "/assets/social-card.svg",
 }
 
 const consentStorageKey = "jarrett_cookie_choice"
@@ -61,6 +63,14 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;")
 }
 
+function toAbsoluteUrl(urlOrPath) {
+  if (/^https?:\/\//.test(urlOrPath)) {
+    return urlOrPath
+  }
+
+  return `${site.url}${urlOrPath}`
+}
+
 function slugify(value) {
   return value
     .toLowerCase()
@@ -80,7 +90,10 @@ function renderInlineMarkdown(value) {
   })
 
   rendered = rendered
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, label, url) => {
+      const rel = /^https?:\/\//.test(url) ? ' rel="noopener noreferrer"' : ""
+      return `<a href="${url}"${rel}>${label}</a>`
+    })
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
 
@@ -89,6 +102,76 @@ function renderInlineMarkdown(value) {
   })
 
   return rendered
+}
+
+function sanitizeHtml(html) {
+  const allowedTags = new Set([
+    "p",
+    "h2",
+    "h3",
+    "ol",
+    "ul",
+    "li",
+    "strong",
+    "em",
+    "code",
+    "pre",
+    "a",
+    "blockquote",
+    "figure",
+    "figcaption",
+    "img",
+    "xml",
+    "plist",
+    "dict",
+    "key",
+    "string",
+    "array",
+    "true",
+  ])
+
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/ on[a-z]+="[^"]*"/gi, "")
+    .replace(/ on[a-z]+='[^']*'/gi, "")
+    .replace(/javascript:/gi, "")
+    .replace(/<\/*([a-z0-9:-]+)([^>]*)>/gi, (match, rawTag, rawAttrs) => {
+      const tag = rawTag.toLowerCase()
+      if (!allowedTags.has(tag)) {
+        return escapeHtml(match)
+      }
+
+      if (match.startsWith("</")) {
+        return `</${tag}>`
+      }
+
+      let attrs = rawAttrs || ""
+      if (tag === "a") {
+        const hrefMatch = attrs.match(/\shref=(["'])(.*?)\1/i)
+        if (!hrefMatch) {
+          return `<${tag}>`
+        }
+
+        const href = escapeAttribute(hrefMatch[2])
+        const rel = /^https?:\/\//i.test(href) ? ' rel="noopener noreferrer"' : ""
+        return `<a href="${href}"${rel}>`
+      }
+
+      if (tag === "img") {
+        const srcMatch = attrs.match(/\ssrc=(["'])(.*?)\1/i)
+        if (!srcMatch) {
+          return ""
+        }
+
+        const altMatch = attrs.match(/\salt=(["'])(.*?)\1/i)
+        const src = escapeAttribute(srcMatch[2])
+        const alt = altMatch ? escapeAttribute(altMatch[2]) : ""
+        return `<img src="${src}" alt="${alt}" />`
+      }
+
+      return `<${tag}>`
+    })
 }
 
 function renderMarkdown(content) {
@@ -130,7 +213,7 @@ function renderMarkdown(content) {
         index += 1
       }
 
-      html.push(rawHtml.join("\n"))
+      html.push(sanitizeHtml(rawHtml.join("\n")))
       continue
     }
 
@@ -242,6 +325,46 @@ function formatDate(value) {
   }).format(new Date(normalizedValue))
 }
 
+function isoDate(value) {
+  const normalizedValue = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00Z` : value
+  return new Date(normalizedValue).toISOString()
+}
+
+function escapeAttribute(value) {
+  return String(value).replace(/"/g, "&quot;")
+}
+
+function renderJsonLd(data) {
+  return `<script type="application/ld+json">${JSON.stringify(data)}</script>`
+}
+
+function createSocialCard(title, description) {
+  const safeTitle = escapeHtml(title)
+  const safeDescription = escapeHtml(description)
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="${safeTitle}">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b1220" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7dd3fc" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <rect x="72" y="72" width="1056" height="486" rx="28" fill="rgba(15, 23, 42, 0.55)" stroke="rgba(125, 211, 252, 0.25)" />
+  <text x="116" y="154" fill="#7dd3fc" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="4">JARRETT WILLIAMS</text>
+  <text x="116" y="252" fill="#f8fafc" font-family="'Source Serif 4', Georgia, serif" font-size="66" font-weight="700">${safeTitle}</text>
+  <text x="116" y="334" fill="#cbd5e1" font-family="Inter, Arial, sans-serif" font-size="28">${safeDescription}</text>
+  <text x="116" y="488" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="28">IT operations, systems engineering, Azure, and practical automation</text>
+  <circle cx="1030" cy="162" r="54" fill="url(#accent)" />
+  <path d="M1004 170c12-18 34-31 59-27-9 11-12 24-10 38 3 23 18 35 26 43-23 6-44 0-58-15-12-13-18-30-17-39z" fill="#0b1220"/>
+  <path d="M990 214c-19 5-36 1-49-12 7-10 18-16 30-16 8 0 15 2 22 8 5 5 9 12 11 20h-14z" fill="#0b1220"/>
+</svg>`
+}
+
 function readPosts() {
   if (!fs.existsSync(contentDir)) {
     return []
@@ -270,8 +393,9 @@ function readPosts() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 }
 
-function pageTemplate({ title, description, content, canonicalPath }) {
+function pageTemplate({ title, description, content, canonicalPath, socialImagePath = site.socialImagePath, jsonLd = "", robots = "index,follow,max-image-preview:large" }) {
   const canonicalUrl = canonicalPath ? `${site.url}${canonicalPath}` : site.url
+  const socialImageUrl = toAbsoluteUrl(socialImagePath)
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -279,16 +403,27 @@ function pageTemplate({ title, description, content, canonicalPath }) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(title)}</title>
     <meta name="description" content="${escapeHtml(description)}" />
+    <meta name="robots" content="${robots}" />
+    <meta name="author" content="${escapeHtml(site.author)}" />
     <link rel="canonical" href="${canonicalUrl}" />
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="${canonicalUrl}" />
+    <meta property="og:site_name" content="${escapeHtml(site.title)}" />
+    <meta property="og:locale" content="${site.locale}" />
+    <meta property="og:image" content="${socialImageUrl}" />
+    <meta property="og:image:alt" content="${escapeHtml(title)}" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtml(title)}" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${socialImageUrl}" />
     <meta name="theme-color" content="#0b1220" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" type="application/atom+xml" title="${escapeHtml(site.title)} Feed" href="/feed.xml" />
     <link rel="stylesheet" href="/assets/styles.css" />
     <script src="/assets/consent.js" defer></script>
+    ${jsonLd}
   </head>
   <body>
     <div class="site-shell">
@@ -352,12 +487,12 @@ function renderHome(posts) {
       <div class="topic-list">${topics.map((topic) => `<span>${topic}</span>`).join("")}</div>
     </div>
     <div class="panel panel-image">
-      <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80" alt="Close-up of computer hardware and lighting in a datacenter-style environment" />
+      <img src="/assets/images/hero-circuit.svg" alt="Illustrated circuit board and infrastructure diagram" />
     </div>
   </section>
   <section class="split-grid">
     <div class="panel panel-image">
-      <img src="https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=80" alt="Rows of servers with indicator lights in a datacenter" />
+      <img src="/assets/images/server-racks.svg" alt="Illustrated server racks with cables and status lights" />
     </div>
     <div class="panel panel-copy">
       <p class="eyebrow">About</p>
@@ -413,10 +548,105 @@ function renderPost(post) {
   </article>`
 }
 
+function baseStructuredData() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: site.title,
+    url: site.url,
+    description: site.description,
+    author: {
+      "@type": "Person",
+      name: site.author,
+      url: site.url,
+      sameAs: [site.linkedin],
+    },
+  }
+}
+
+function homeStructuredData() {
+  return [
+    baseStructuredData(),
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      name: site.author,
+      url: site.url,
+      sameAs: [site.linkedin],
+      jobTitle: "Staff Systems Engineer",
+      knowsAbout: [
+        "IT Operations",
+        "Systems Engineering",
+        "Azure",
+        "Automation",
+        "Networking",
+        "Datacenter Operations",
+      ],
+    },
+  ]
+}
+
+function blogIndexStructuredData(posts) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: `${site.title} Blog`,
+    url: `${site.url}/blog/`,
+    description: site.description,
+    publisher: {
+      "@type": "Person",
+      name: site.author,
+    },
+    blogPost: posts.map((post) => ({
+      "@type": "BlogPosting",
+      headline: post.title,
+      url: `${site.url}/blog/${post.slug}/`,
+      datePublished: isoDate(post.date),
+      author: {
+        "@type": "Person",
+        name: site.author,
+      },
+    })),
+  }
+}
+
+function postStructuredData(post) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.description,
+    datePublished: isoDate(post.date),
+    dateModified: isoDate(post.date),
+    author: {
+      "@type": "Person",
+      name: site.author,
+      url: site.url,
+    },
+    publisher: {
+      "@type": "Person",
+      name: site.author,
+      url: site.url,
+    },
+    mainEntityOfPage: `${site.url}/blog/${post.slug}/`,
+    image: [toAbsoluteUrl(site.socialImagePath)],
+  }
+}
+
+function pageStructuredData(pageTitle, pagePath, description) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: pageTitle,
+    url: `${site.url}${pagePath}`,
+    description,
+  }
+}
+
 function renderAbout() {
   return `<section class="split-grid">
     <div class="panel panel-image">
-      <img src="https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80" alt="Technician working at a laptop in a server room" />
+      <img src="/assets/images/server-room-tech.svg" alt="Illustrated technician working in a server room" />
     </div>
     <div class="panel panel-copy">
       <p class="eyebrow">About</p>
@@ -502,6 +732,29 @@ function writeConsentScript() {
   fs.writeFileSync(consentScriptPath, script)
 }
 
+function writeHeadersFile() {
+  const headers = `/*
+  Content-Security-Policy: default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  X-Robots-Tag: index, follow
+
+/feed.xml
+  Content-Type: application/atom+xml; charset=utf-8
+
+/sitemap.xml
+  Content-Type: application/xml; charset=utf-8
+
+/robots.txt
+  Content-Type: text/plain; charset=utf-8
+`
+
+  fs.writeFileSync(path.join(distDir, "_headers"), headers)
+}
+
 function writePage(relativePath, html) {
   const outputPath = path.join(distDir, relativePath)
   ensureDir(path.dirname(outputPath))
@@ -516,6 +769,8 @@ function build() {
   fs.copyFileSync(faviconPath, path.join(distDir, "favicon.svg"))
   copyDir(imagesSrcDir, imagesDistDir)
   writeConsentScript()
+  fs.writeFileSync(path.join(assetsDir, "social-card.svg"), createSocialCard(site.title, site.description))
+  writeHeadersFile()
 
   writePage(
     "index.html",
@@ -524,6 +779,7 @@ function build() {
       description: site.description,
       canonicalPath: "",
       content: renderHome(posts),
+      jsonLd: homeStructuredData().map(renderJsonLd).join(""),
     })
   )
 
@@ -534,6 +790,7 @@ function build() {
       description: site.description,
       canonicalPath: "/blog/",
       content: renderBlogIndex(posts),
+      jsonLd: renderJsonLd(blogIndexStructuredData(posts)),
     })
   )
 
@@ -545,6 +802,7 @@ function build() {
         description: post.description,
         canonicalPath: `/blog/${post.slug}/`,
         content: renderPost(post),
+        jsonLd: renderJsonLd(postStructuredData(post)),
       })
     )
   }
@@ -556,6 +814,7 @@ function build() {
       description: site.description,
       canonicalPath: "/about/",
       content: renderAbout(),
+      jsonLd: renderJsonLd(pageStructuredData(`About | ${site.title}`, "/about/", site.description)),
     })
   )
 
@@ -566,6 +825,8 @@ function build() {
       description: site.description,
       canonicalPath: "/privacy/",
       content: renderPrivacy(),
+      robots: "noindex,follow,max-image-preview:large",
+      jsonLd: renderJsonLd(pageStructuredData(`Privacy | ${site.title}`, "/privacy/", "Privacy policy for jarrettwilliams.com")),
     })
   )
 
@@ -576,6 +837,8 @@ function build() {
       description: "Cookie policy for jarrettwilliams.com",
       canonicalPath: "/cookies/",
       content: renderCookies(),
+      robots: "noindex,follow,max-image-preview:large",
+      jsonLd: renderJsonLd(pageStructuredData(`Cookies | ${site.title}`, "/cookies/", "Cookie policy for jarrettwilliams.com")),
     })
   )
 
@@ -585,14 +848,12 @@ function build() {
   )
 
   const sitemapEntries = [
-    "",
-    "/blog/",
-    "/about/",
-    "/cookies/",
-    "/privacy/",
-    ...posts.map((post) => `/blog/${post.slug}/`),
+    { path: "", lastmod: new Date().toISOString() },
+    { path: "/blog/", lastmod: new Date().toISOString() },
+    { path: "/about/", lastmod: new Date().toISOString() },
+    ...posts.map((post) => ({ path: `/blog/${post.slug}/`, lastmod: isoDate(post.date) })),
   ]
-    .map((entry) => `<url><loc>${site.url}${entry}</loc></url>`)
+    .map((entry) => `<url><loc>${site.url}${entry.path}</loc><lastmod>${entry.lastmod}</lastmod></url>`)
     .join("")
 
   fs.writeFileSync(
@@ -634,6 +895,8 @@ function build() {
       description: site.description,
       canonicalPath: "",
       content: `<section class="panel post-panel"><p class="eyebrow">404</p><h1>Page not found</h1><p class="lede">The page you were looking for is not here.</p><a class="button button-primary" href="/">Back home</a></section>`,
+      robots: "noindex,nofollow",
+      jsonLd: renderJsonLd(pageStructuredData(`Not Found | ${site.title}`, "/404", site.description)),
     })
   )
 

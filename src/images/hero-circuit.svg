@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-label="Circuit board illustration">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+    <linearGradient id="trace" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7dd3fc" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)" />
+  <g stroke="url(#trace)" stroke-width="8" fill="none" opacity="0.9">
+    <path d="M120 180h220v120h160v140h160v-90h180" />
+    <path d="M240 620h220v-90h150v130h210" />
+    <path d="M860 140v180h120v180" />
+    <path d="M140 440h120v160h140" />
+  </g>
+  <g fill="#e2e8f0">
+    <rect x="290" y="120" width="190" height="130" rx="16" opacity="0.95" />
+    <rect x="640" y="320" width="220" height="170" rx="18" fill="#1e293b" />
+    <rect x="150" y="560" width="170" height="120" rx="16" fill="#1e293b" />
+    <rect x="900" y="180" width="150" height="110" rx="14" fill="#1e293b" />
+  </g>
+  <g fill="#7dd3fc">
+    <circle cx="180" cy="180" r="14" />
+    <circle cx="340" cy="300" r="14" />
+    <circle cx="660" cy="440" r="14" />
+    <circle cx="980" cy="320" r="14" />
+    <circle cx="460" cy="530" r="14" />
+  </g>
+</svg>

@@ -473,10 +473,10 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
 }
 
 function renderHome(posts) {
-  const recent = posts.slice(0, 4)
-  const list = recent
+  const featuredPosts = posts.slice(0, 6)
+  const cards = featuredPosts
     .map(
-      (post) => `<article class="post-preview">
+      (post) => `<article class="post-card">
         <time datetime="${post.date}">${formatDate(post.date)}</time>
         <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
         <p>${escapeHtml(post.description)}</p>
@@ -485,29 +485,30 @@ function renderHome(posts) {
     .join("")
 
   return `
-    <div class="home-intro">
-      <p>Practical write-ups from the infrastructure side of IT. Notes on endpoint work, identity systems, networking, datacenter visits, and the decisions that keep systems running in production.</p>
-      <p>This is a personal collection of field notes and practical solutions. No filler.</p>
-    </div>
+    <section class="home-hero">
+      <p class="eyebrow">Jarrett Williams</p>
+      <h1>Field notes on infrastructure, systems engineering, and keeping things stable.</h1>
+      <p class="lede">I'm a Staff Systems Engineer working across IT operations, cloud architecture, and automation. This is a running notebook of real-world migrations, identity cleanup, and the practical fixes that rarely fit neatly into vendor docs.</p>
+      <div class="button-row">
+        <a class="button button-primary" href="/blog/">Read the blog</a>
+        <a class="button" href="/about/">About me</a>
+      </div>
+    </section>
 
-    <section class="recent-posts">
-      <div class="section-header">
+    <section class="listing-section">
+      <div class="section-heading">
         <h2>Recent posts</h2>
         <a href="/blog/">View all →</a>
       </div>
-      <div class="post-list">${list}</div>
+      <div class="post-grid">${cards}</div>
     </section>
-
-    <div class="home-about">
-      <p>I’m Jarrett Williams, a Staff Systems Engineer with 15+ years across IT operations, cloud, and infrastructure. <a href="/about/">More about me →</a></p>
-    </div>
   `
 }
 
 function renderBlogIndex(posts) {
-  const list = posts
+  const cards = posts
     .map(
-      (post) => `<article class="post-preview">
+      (post) => `<article class="post-card">
         <time datetime="${post.date}">${formatDate(post.date)}</time>
         <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
         <p>${escapeHtml(post.description)}</p>
@@ -516,11 +517,14 @@ function renderBlogIndex(posts) {
     .join("")
 
   return `
-    <div class="page-intro">
-      <h1>Blog</h1>
-      <p>Notes, walkthroughs, and practical fixes from real IT operations and systems engineering work.</p>
-    </div>
-    <div class="post-list">${list}</div>
+    <section class="page-intro">
+      <p class="eyebrow">Blog</p>
+      <h1>Posts and walkthroughs</h1>
+      <p class="lede">Real notes from endpoint work, datacenter visits, identity cleanup, and the systems work that usually has to be figured out in motion.</p>
+    </section>
+    <section class="listing-section">
+      <div class="post-grid">${cards}</div>
+    </section>
   `
 }
 

@@ -343,18 +343,12 @@ function createSocialCard(title, description) {
   const safeDescription = escapeHtml(description)
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="${safeTitle}">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f1117" />
-      <stop offset="100%" stop-color="#0f1117" />
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="630" fill="#0f1117" />
-  <rect x="72" y="72" width="1056" height="486" rx="6" fill="#16181f" stroke="#1f2937" stroke-width="2" />
-  <text x="116" y="154" fill="#93c5fd" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="600" letter-spacing="1">JARRETT WILLIAMS</text>
-  <text x="116" y="250" fill="#e5e7eb" font-family="'Source Serif 4', Georgia, serif" font-size="58" font-weight="600">${safeTitle}</text>
-  <text x="116" y="324" fill="#9ca3af" font-family="Inter, Arial, sans-serif" font-size="24">${safeDescription}</text>
-  <text x="116" y="488" fill="#6b7280" font-family="Inter, Arial, sans-serif" font-size="22">IT operations • systems engineering • practical notes</text>
+  <rect width="1200" height="630" fill="#0c0f17" />
+  <rect x="72" y="72" width="1056" height="486" rx="8" fill="#11151f" stroke="#1f2937" stroke-width="2" />
+  <text x="116" y="148" fill="#7dd3fc" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="1.5">JARRETT WILLIAMS</text>
+  <text x="116" y="240" fill="#e5e7eb" font-family="'Source Serif 4', Georgia, serif" font-size="52" font-weight="600">${safeTitle}</text>
+  <text x="116" y="308" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="22">${safeDescription}</text>
+  <text x="116" y="470" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="20">IT operations, systems engineering, and practical notes</text>
 </svg>`
 }
 
@@ -440,11 +434,12 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
   <body>
     <div class="site-shell">
       <header class="site-header">
-        <div>
+        <div class="brand-block">
           <a class="brand" href="/">Jarrett Williams</a>
-          <p class="tagline">writing about systems and infrastructure</p>
+          <p class="tagline">IT operations, systems engineering, and practical notes</p>
         </div>
         <nav class="nav" aria-label="Main Navigation">
+          <a href="/">Home</a>
           <a href="/blog/">Blog</a>
           <a href="/about/">About</a>
         </nav>
@@ -477,9 +472,10 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
 }
 
 function renderHome(posts) {
-  const list = posts
+  const recent = posts.slice(0, 4)
+  const list = recent
     .map(
-      (post) => `<article>
+      (post) => `<article class="post-preview">
         <time datetime="${post.date}">${formatDate(post.date)}</time>
         <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
         <p>${escapeHtml(post.description)}</p>
@@ -488,18 +484,29 @@ function renderHome(posts) {
     .join("")
 
   return `
-    <p class="byline">Notes on infrastructure, systems engineering, and the work of keeping things running.</p>
+    <div class="home-intro">
+      <p>Practical write-ups from the infrastructure side of IT. Notes on endpoint work, identity systems, networking, datacenter visits, and the decisions that keep systems running in production.</p>
+      <p>This is a personal collection of field notes and practical solutions. No filler.</p>
+    </div>
 
-    <div class="post-list">${list}</div>
+    <section class="recent-posts">
+      <div class="section-header">
+        <h2>Recent posts</h2>
+        <a href="/blog/">View all →</a>
+      </div>
+      <div class="post-list">${list}</div>
+    </section>
 
-    <p style="margin-top: 28px;"><a href="/about/">About</a> &nbsp;·&nbsp; <a href="/blog/">Blog</a></p>
+    <div class="home-about">
+      <p>I’m Jarrett Williams, a Staff Systems Engineer with 15+ years across IT operations, cloud, and infrastructure. <a href="/about/">More about me →</a></p>
+    </div>
   `
 }
 
 function renderBlogIndex(posts) {
   const list = posts
     .map(
-      (post) => `<article>
+      (post) => `<article class="post-preview">
         <time datetime="${post.date}">${formatDate(post.date)}</time>
         <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
         <p>${escapeHtml(post.description)}</p>
@@ -508,9 +515,11 @@ function renderBlogIndex(posts) {
     .join("")
 
   return `
-    <h1>Blog</h1>
+    <div class="page-intro">
+      <h1>Blog</h1>
+      <p>Notes, walkthroughs, and practical fixes from real IT operations and systems engineering work.</p>
+    </div>
     <div class="post-list">${list}</div>
-    <p style="margin-top:24px"><a href="/">← Latest posts</a></p>
   `
 }
 
@@ -620,28 +629,38 @@ function pageStructuredData(pageTitle, pagePath, description) {
 }
 
 function renderAbout() {
-  return `
-    <h1>About</h1>
-
-    <div class="about-image">
-      <img src="/assets/images/server-room-tech.svg" alt="" width="420" />
-    </div>
-
-    <p>This is a running notebook for infrastructure work: the systems engineering, Azure environments, endpoint admin, and the real-world fixes that rarely make it into the official docs.</p>
-
-    <p>I work in IT Operations and systems engineering. The notes here come from migrations, identity cleanup, datacenter visits, and automation that actually has to survive production.</p>
-
-    <h2>Background</h2>
-    <ul>
-      <li>15+ years across cloud, networking, data centers, and regulated environments (healthcare, banking, education, large tech).</li>
-      <li>Led infrastructure for healthcare systems — networks, voice, security, storage.</li>
-      <li>Cloud and identity modernization (legacy migrations, OKTA in banking).</li>
-      <li>Operational programs at Amazon — early Amazon Go deployments, device labs, vendor workflows.</li>
-      <li>Large-scale work: campus data center builds, phone migrations, security and process rollouts.</li>
-    </ul>
-
-    <p>Hope something here saves you a few hours.</p>
-  `
+  return `<div class="about-layout">
+    <aside class="about-sidebar">
+      <div class="about-profile-card">
+        <div class="about-avatar-placeholder">JW</div>
+        <h2>Jarrett Williams</h2>
+        <p>Staff Systems Engineer</p>
+        <ul class="about-details-list">
+          <li><span>Role</span><span>Staff Engineer</span></li>
+          <li><span>Focus</span><span>Systems &amp; Infra</span></li>
+          <li><span>Experience</span><span>15+ Years</span></li>
+          <li><span>Location</span><span>United States</span></li>
+        </ul>
+      </div>
+    </aside>
+    <article class="about-narrative">
+      <p class="eyebrow">About</p>
+      <h1>A working notebook for infrastructure problems.</h1>
+      <p>This site is a running notebook for the operational side of IT — the systems engineering work behind Azure environments, endpoint administration, and the practical fixes that rarely fit neatly into vendor docs.</p>
+      <p>I work across IT Operations and as a Staff Systems Engineer, so the write-ups here tend to come from real migrations, identity cleanup, infrastructure decisions, automation, and field notes from datacenter visits.</p>
+      <h2>Professional Focus &amp; Experience</h2>
+      <p>The thread that runs through most of my work is building practical systems that hold up under real operational pressure, not just in ideal lab conditions.</p>
+      <ul>
+        <li><strong>Enterprise Operations:</strong> Over 15 years of infrastructure experience across cloud environments, networking, data center operations, and highly regulated industries.</li>
+        <li><strong>Infrastructure Strategy:</strong> Led architecture for healthcare systems, including enterprise network, voice, security, and storage administration.</li>
+        <li><strong>Identity &amp; Cloud Modernization:</strong> Managed migrations from legacy platforms, identity consolidation, and Okta deployments in banking environments.</li>
+        <li><strong>Scale &amp; Automation:</strong> Built operational programs at Amazon, from deployment strategy for early Amazon Go systems to device-lab infrastructure and vendor support workflows.</li>
+        <li><strong>Data Center Engineering:</strong> Delivered large-scale infrastructure improvements such as campus data center commissioning, phone-system migrations, and security/ITSM process rollouts.</li>
+      </ul>
+      <h2>About this blog</h2>
+      <p>This site is built as a static publishing site to keep it fast, light, and private. It doesn't track you, load dynamic ads, or require cookies for reading. The goal is simple: leave behind useful, tested write-ups that save someone else a few hours of trial, error, and tab-hoarding.</p>
+    </article>
+  </div>`
 }
 
 function renderPrivacy() {

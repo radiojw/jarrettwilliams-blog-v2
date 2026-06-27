@@ -1,33 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-label="Server rack illustration">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#111827" />
-      <stop offset="100%" stop-color="#0f172a" />
-    </linearGradient>
-  </defs>
-  <rect width="1200" height="900" fill="url(#bg)" />
+  <rect width="1200" height="900" fill="#0f1117" />
   <g>
-    <rect x="170" y="110" width="270" height="670" rx="18" fill="#0b1220" stroke="#334155" stroke-width="6"/>
-    <rect x="490" y="110" width="270" height="670" rx="18" fill="#0b1220" stroke="#334155" stroke-width="6"/>
-    <rect x="810" y="110" width="220" height="670" rx="18" fill="#0b1220" stroke="#334155" stroke-width="6"/>
+    <rect x="170" y="110" width="270" height="670" rx="4" fill="#16181f" stroke="#1f2937" stroke-width="3"/>
+    <rect x="490" y="110" width="270" height="670" rx="4" fill="#16181f" stroke="#1f2937" stroke-width="3"/>
+    <rect x="810" y="110" width="220" height="670" rx="4" fill="#16181f" stroke="#1f2937" stroke-width="3"/>
   </g>
   <g fill="#1f2937">
-    <rect x="200" y="150" width="210" height="90" rx="10"/>
-    <rect x="200" y="270" width="210" height="90" rx="10"/>
-    <rect x="200" y="390" width="210" height="90" rx="10"/>
-    <rect x="200" y="510" width="210" height="90" rx="10"/>
-    <rect x="200" y="630" width="210" height="90" rx="10"/>
-    <rect x="520" y="150" width="210" height="90" rx="10"/>
-    <rect x="520" y="270" width="210" height="90" rx="10"/>
-    <rect x="520" y="390" width="210" height="90" rx="10"/>
-    <rect x="520" y="510" width="210" height="90" rx="10"/>
-    <rect x="520" y="630" width="210" height="90" rx="10"/>
+    <rect x="200" y="150" width="210" height="90" rx="2"/>
+    <rect x="200" y="270" width="210" height="90" rx="2"/>
+    <rect x="200" y="390" width="210" height="90" rx="2"/>
+    <rect x="200" y="510" width="210" height="90" rx="2"/>
+    <rect x="200" y="630" width="210" height="90" rx="2"/>
+    <rect x="520" y="150" width="210" height="90" rx="2"/>
+    <rect x="520" y="270" width="210" height="90" rx="2"/>
+    <rect x="520" y="390" width="210" height="90" rx="2"/>
+    <rect x="520" y="510" width="210" height="90" rx="2"/>
+    <rect x="520" y="630" width="210" height="90" rx="2"/>
   </g>
-  <g fill="#7dd3fc">
-    <circle cx="380" cy="195" r="9"/>
-    <circle cx="380" cy="315" r="9"/>
-    <circle cx="380" cy="435" r="9"/>
-    <circle cx="380" cy="555" r="9"/>
+  <g fill="#475569">
+    <circle cx="380" cy="195" r="7"/>
+    <circle cx="380" cy="315" r="7"/>
+    <circle cx="380" cy="435" r="7"/>
+    <circle cx="380" cy="555" r="7"/>
     <circle cx="380" cy="675" r="9"/>
     <circle cx="700" cy="195" r="9"/>
     <circle cx="700" cy="315" r="9"/>

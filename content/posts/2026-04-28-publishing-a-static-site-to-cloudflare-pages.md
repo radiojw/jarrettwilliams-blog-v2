@@ -42,7 +42,7 @@ Most static-site deployments to Cloudflare Pages follow the same rough pattern:
 That may sound obvious, but it helps to keep those steps mentally separate. A lot of deployment confusion comes from mixing them together.
 
 <figure>
-  <img src="/assets/images/cloudflare-pages-workflow.svg" alt="A simple Cloudflare Pages workflow showing build, deploy, and domain verification" />
+  <img src="/assets/images/cloudflare-pages-workflow.svg" alt="A simple Cloudflare Pages workflow showing build, deploy, and domain verification" width="1200" height="680" loading="lazy" />
   <figcaption>A simple way to think about it: build the site, publish the output, then verify the actual domain.</figcaption>
 </figure>
 

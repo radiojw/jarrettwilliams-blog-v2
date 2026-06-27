@@ -345,23 +345,16 @@ function createSocialCard(title, description) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="${safeTitle}">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0b1220" />
-      <stop offset="100%" stop-color="#111827" />
-    </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#7dd3fc" />
-      <stop offset="100%" stop-color="#38bdf8" />
+      <stop offset="0%" stop-color="#0f1117" />
+      <stop offset="100%" stop-color="#0f1117" />
     </linearGradient>
   </defs>
-  <rect width="1200" height="630" fill="url(#bg)" />
-  <rect x="72" y="72" width="1056" height="486" rx="28" fill="rgba(15, 23, 42, 0.55)" stroke="rgba(125, 211, 252, 0.25)" />
-  <text x="116" y="154" fill="#7dd3fc" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="4">JARRETT WILLIAMS</text>
-  <text x="116" y="252" fill="#f8fafc" font-family="'Source Serif 4', Georgia, serif" font-size="66" font-weight="700">${safeTitle}</text>
-  <text x="116" y="334" fill="#cbd5e1" font-family="Inter, Arial, sans-serif" font-size="28">${safeDescription}</text>
-  <text x="116" y="488" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="28">IT operations, systems engineering, Azure, and practical automation</text>
-  <circle cx="1030" cy="162" r="54" fill="url(#accent)" />
-  <path d="M1004 170c12-18 34-31 59-27-9 11-12 24-10 38 3 23 18 35 26 43-23 6-44 0-58-15-12-13-18-30-17-39z" fill="#0b1220"/>
-  <path d="M990 214c-19 5-36 1-49-12 7-10 18-16 30-16 8 0 15 2 22 8 5 5 9 12 11 20h-14z" fill="#0b1220"/>
+  <rect width="1200" height="630" fill="#0f1117" />
+  <rect x="72" y="72" width="1056" height="486" rx="6" fill="#16181f" stroke="#1f2937" stroke-width="2" />
+  <text x="116" y="154" fill="#93c5fd" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="600" letter-spacing="1">JARRETT WILLIAMS</text>
+  <text x="116" y="250" fill="#e5e7eb" font-family="'Source Serif 4', Georgia, serif" font-size="58" font-weight="600">${safeTitle}</text>
+  <text x="116" y="324" fill="#9ca3af" font-family="Inter, Arial, sans-serif" font-size="24">${safeDescription}</text>
+  <text x="116" y="488" fill="#6b7280" font-family="Inter, Arial, sans-serif" font-size="22">IT operations • systems engineering • practical notes</text>
 </svg>`
 }
 
@@ -393,7 +386,7 @@ function readPosts() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 }
 
-function pageTemplate({ title, description, content, canonicalPath, socialImagePath = site.socialImagePath, jsonLd = "", robots = "index,follow,max-image-preview:large" }) {
+function pageTemplate({ title, description, content, canonicalPath, socialImagePath = site.socialImagePath, jsonLd = "", robots = "index,follow,max-image-preview:large", ogType = "website", postDate = null }) {
   const canonicalUrl = canonicalPath ? `${site.url}${canonicalPath}` : site.url
   const socialImageUrl = toAbsoluteUrl(socialImagePath)
   return `<!doctype html>
@@ -408,32 +401,50 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
     <link rel="canonical" href="${canonicalUrl}" />
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content="${ogType}" />
     <meta property="og:url" content="${canonicalUrl}" />
     <meta property="og:site_name" content="${escapeHtml(site.title)}" />
     <meta property="og:locale" content="${site.locale}" />
     <meta property="og:image" content="${socialImageUrl}" />
     <meta property="og:image:alt" content="${escapeHtml(title)}" />
+    ${ogType === "article" && postDate ? `<meta property="article:published_time" content="${isoDate(postDate)}" />` : ""}
+    ${ogType === "article" ? `<meta property="article:author" content="${escapeHtml(site.author)}" />` : ""}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtml(title)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${socialImageUrl}" />
     <meta name="theme-color" content="#0b1220" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&display=swap" rel="stylesheet" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/atom+xml" title="${escapeHtml(site.title)} Feed" href="/feed.xml" />
     <link rel="stylesheet" href="/assets/styles.css" />
     <script src="/assets/consent.js" defer></script>
+    <script type="speculationrules">
+      {
+        "prefetch": [{
+          "tag": "prefetch-speculations",
+          "where": { "href_matches": "/*" },
+          "eagerness": "eager"
+        }],
+        "prerender": [{
+          "tag": "prerender-speculations",
+          "where": { "href_matches": "/*" },
+          "eagerness": "moderate"
+        }]
+      }
+    </script>
     ${jsonLd}
   </head>
   <body>
     <div class="site-shell">
       <header class="site-header">
-        <div class="brand-block">
+        <div>
           <a class="brand" href="/">Jarrett Williams</a>
-          <p class="tagline">IT operations, systems engineering, Azure, and practical automation</p>
+          <p class="tagline">writing about systems and infrastructure</p>
         </div>
-        <nav class="nav">
-          <a href="/">Home</a>
+        <nav class="nav" aria-label="Main Navigation">
           <a href="/blog/">Blog</a>
           <a href="/about/">About</a>
         </nav>
@@ -450,7 +461,7 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
         </div>
       </footer>
     </div>
-    <section class="cookie-banner" data-cookie-banner hidden>
+    <section class="cookie-banner" data-cookie-banner role="region" aria-label="Cookie Consent" hidden>
       <div class="cookie-copy">
         <p class="cookie-title">Cookie choices</p>
         <p>This site uses essential site storage and may add optional measurement later. Choose what to allow.</p>
@@ -466,12 +477,9 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
 }
 
 function renderHome(posts) {
-  const featuredPosts = posts.slice(0, 3)
-  const topics = ["Endpoint Management", "Identity and Access", "Datacenter Work", "Networking", "macOS Admin"]
-
-  const cards = featuredPosts
+  const list = posts
     .map(
-      (post) => `<article class="post-card">
+      (post) => `<article>
         <time datetime="${post.date}">${formatDate(post.date)}</time>
         <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
         <p>${escapeHtml(post.description)}</p>
@@ -479,48 +487,19 @@ function renderHome(posts) {
     )
     .join("")
 
-  return `<section class="hero-grid">
-    <div class="panel panel-copy">
-      <p class="eyebrow">Field Notes</p>
-      <h1>Practical write-ups for the jobs that land on the infrastructure side of IT.</h1>
-      <p class="lede">Real-world notes on endpoint work, identity cleanup, networking, datacenter visits, and the little decisions that keep systems stable.</p>
-      <div class="topic-list">${topics.map((topic) => `<span>${topic}</span>`).join("")}</div>
-    </div>
-    <div class="panel panel-image">
-      <img src="/assets/images/hero-circuit.svg" alt="Illustrated circuit board and infrastructure diagram" />
-    </div>
-  </section>
-  <section class="split-grid">
-    <div class="panel panel-image">
-      <img src="/assets/images/server-racks.svg" alt="Illustrated server racks with cables and status lights" />
-    </div>
-    <div class="panel panel-copy">
-      <p class="eyebrow">About</p>
-      <h2>Built for useful answers, not filler.</h2>
-      <p>This site is a running notebook for the operational side of IT, the systems engineering work behind Azure environments, and the practical side of AI automation that has to work outside of demos.</p>
-      <p>I work across IT Operations and as a Staff Systems Engineer, so the write-ups here tend to come from real migrations, identity cleanup, infrastructure decisions, automation work, and the field notes that rarely fit neatly into vendor docs.</p>
-      <div class="button-row">
-        <a class="button button-primary" href="/blog/">Read the blog</a>
-        <a class="button" href="/about/">More about Jarrett</a>
-      </div>
-    </div>
-  </section>
-  <section class="listing-section">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Recent Posts</p>
-        <h2>Latest write-ups</h2>
-      </div>
-      <a href="/blog/">View all posts</a>
-    </div>
-    <div class="post-grid">${cards}</div>
-  </section>`
+  return `
+    <p class="byline">Notes on infrastructure, systems engineering, and the work of keeping things running.</p>
+
+    <div class="post-list">${list}</div>
+
+    <p style="margin-top: 28px;"><a href="/about/">About</a> &nbsp;·&nbsp; <a href="/blog/">Blog</a></p>
+  `
 }
 
 function renderBlogIndex(posts) {
-  const cards = posts
+  const list = posts
     .map(
-      (post) => `<article class="post-card">
+      (post) => `<article>
         <time datetime="${post.date}">${formatDate(post.date)}</time>
         <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
         <p>${escapeHtml(post.description)}</p>
@@ -528,22 +507,19 @@ function renderBlogIndex(posts) {
     )
     .join("")
 
-  return `<section class="panel panel-copy">
-    <p class="eyebrow">Blog</p>
-    <h1>Posts and walkthroughs</h1>
-    <p class="lede">Real notes from endpoint work, datacenter visits, identity cleanup, and the systems work that usually has to be figured out in motion.</p>
-  </section>
-  <section class="listing-section">
-    <div class="post-grid">${cards}</div>
-  </section>`
+  return `
+    <h1>Blog</h1>
+    <div class="post-list">${list}</div>
+    <p style="margin-top:24px"><a href="/">← Latest posts</a></p>
+  `
 }
 
 function renderPost(post) {
-  return `<article class="panel post-panel">
-    <p class="eyebrow">Blog Post</p>
-    <h1>${escapeHtml(post.title)}</h1>
-    <p class="lede">${escapeHtml(post.description)}</p>
-    <time datetime="${post.date}">${formatDate(post.date)}</time>
+  return `<article>
+    <div class="post-header">
+      <time datetime="${post.date}">${formatDate(post.date)}</time>
+      <h1>${escapeHtml(post.title)}</h1>
+    </div>
     <div class="post-content">${post.html}</div>
   </article>`
 }
@@ -644,33 +620,32 @@ function pageStructuredData(pageTitle, pagePath, description) {
 }
 
 function renderAbout() {
-  return `<section class="split-grid">
-    <div class="panel panel-image">
-      <img src="/assets/images/server-room-tech.svg" alt="Illustrated technician working in a server room" />
+  return `
+    <h1>About</h1>
+
+    <div class="about-image">
+      <img src="/assets/images/server-room-tech.svg" alt="" width="420" />
     </div>
-    <div class="panel panel-copy">
-      <p class="eyebrow">About</p>
-      <h1>A working notebook for infrastructure problems.</h1>
-      <p>This site is a running notebook for the operational side of IT, the systems engineering work behind Azure environments, and the practical side of AI automation that has to work outside of demos.</p>
-      <p>I work across IT Operations and staff-level systems engineering, with a background that spans healthcare, banking, higher education, and large-scale technology environments. Most of the work has lived where infrastructure, reliability, and practical execution all have to meet.</p>
-      <p>That mix shows up here as endpoint administration, identity cleanup, networking, datacenter visits, Azure work, cloud migrations, and small but useful automations that save time when repeated work starts piling up.</p>
-      <h2>A few professional highlights</h2>
-      <p>The thread that runs through most of my work is building practical systems that hold up under real operational pressure, not just in ideal lab conditions.</p>
-      <ul>
-        <li>15+ years of infrastructure experience across cloud, networking, data center operations, and highly regulated environments.</li>
-        <li>Leading infrastructure strategy for healthcare systems, including enterprise network, voice, security, and storage administration.</li>
-        <li>Managing cloud and identity modernization work, including legacy platform migrations and OKTA rollout in banking.</li>
-        <li>Building operational programs at Amazon, from deployment strategy for early Amazon Go systems to device-lab infrastructure and vendor support workflows.</li>
-        <li>Delivering large-scale infrastructure improvements such as campus data center commissioning, phone-system migrations, and security and ITSM process rollouts.</li>
-      </ul>
-      <p>The goal is simple: leave behind useful write-ups that save someone else a few hours of trial, error, and tab-hoarding.</p>
-    </div>
-  </section>`
+
+    <p>This is a running notebook for infrastructure work: the systems engineering, Azure environments, endpoint admin, and the real-world fixes that rarely make it into the official docs.</p>
+
+    <p>I work in IT Operations and systems engineering. The notes here come from migrations, identity cleanup, datacenter visits, and automation that actually has to survive production.</p>
+
+    <h2>Background</h2>
+    <ul>
+      <li>15+ years across cloud, networking, data centers, and regulated environments (healthcare, banking, education, large tech).</li>
+      <li>Led infrastructure for healthcare systems — networks, voice, security, storage.</li>
+      <li>Cloud and identity modernization (legacy migrations, OKTA in banking).</li>
+      <li>Operational programs at Amazon — early Amazon Go deployments, device labs, vendor workflows.</li>
+      <li>Large-scale work: campus data center builds, phone migrations, security and process rollouts.</li>
+    </ul>
+
+    <p>Hope something here saves you a few hours.</p>
+  `
 }
 
 function renderPrivacy() {
-  return `<section class="panel post-panel">
-    <p class="eyebrow">Privacy</p>
+  return `
     <h1>Privacy policy</h1>
     <div class="post-content">
       <p>This site is a simple content site. It is not built around accounts, comments, or user dashboards.</p>
@@ -678,12 +653,11 @@ function renderPrivacy() {
       <p>No personal information is intentionally sold or shared for advertising purposes through this site.</p>
       <p>If that changes, this page should be updated to reflect it clearly.</p>
     </div>
-  </section>`
+  `
 }
 
 function renderCookies() {
-  return `<section class="panel post-panel">
-    <p class="eyebrow">Cookies</p>
+  return `
     <h1>Cookie policy</h1>
     <div class="post-content">
       <p>This site is a static publishing site and keeps its data collection intentionally light.</p>
@@ -692,7 +666,7 @@ function renderCookies() {
       <p>If optional analytics or similar tools are added later, they should only run after an accepted choice and this page should be updated to describe them clearly.</p>
       <p>You can change your choice at any time by clearing site storage in your browser and revisiting the site.</p>
     </div>
-  </section>`
+  `
 }
 
 function writeConsentScript() {
@@ -734,7 +708,7 @@ function writeConsentScript() {
 
 function writeHeadersFile() {
   const headers = `/*
-  Content-Security-Policy: default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -775,7 +749,7 @@ function build() {
   writePage(
     "index.html",
     pageTemplate({
-      title: `${site.title} | IT Operations and Infrastructure`,
+      title: `${site.title}`,
       description: site.description,
       canonicalPath: "",
       content: renderHome(posts),
@@ -803,6 +777,8 @@ function build() {
         canonicalPath: `/blog/${post.slug}/`,
         content: renderPost(post),
         jsonLd: renderJsonLd(postStructuredData(post)),
+        ogType: "article",
+        postDate: post.date,
       })
     )
   }
@@ -894,7 +870,7 @@ function build() {
       title: `Not Found | ${site.title}`,
       description: site.description,
       canonicalPath: "",
-      content: `<section class="panel post-panel"><p class="eyebrow">404</p><h1>Page not found</h1><p class="lede">The page you were looking for is not here.</p><a class="button button-primary" href="/">Back home</a></section>`,
+      content: `<h1>Page not found</h1><p class="intro">The page you were looking for is not here.</p><p><a class="button button-primary" href="/">Back home</a></p>`,
       robots: "noindex,nofollow",
       jsonLd: renderJsonLd(pageStructuredData(`Not Found | ${site.title}`, "/404", site.description)),
     })

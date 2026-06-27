@@ -1,5 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
+import crypto from "node:crypto"
 
 const rootDir = process.cwd()
 const contentDir = path.join(rootDir, "content", "posts")
@@ -413,7 +414,7 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&display=swap" rel="stylesheet" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/atom+xml" title="${escapeHtml(site.title)} Feed" href="/feed.xml" />
-    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/${site.cssFilename}" />
     <script src="/assets/consent.js" defer></script>
     <script type="speculationrules">
       {
@@ -758,7 +759,14 @@ function build() {
   const posts = readPosts()
   cleanDir(distDir)
   ensureDir(assetsDir)
-  fs.copyFileSync(stylesPath, path.join(assetsDir, "styles.css"))
+  
+  // Read and hash CSS for cache busting
+  const cssContent = fs.readFileSync(stylesPath, "utf8")
+  const cssHash = crypto.createHash("md5").update(cssContent).digest("hex").slice(0, 8)
+  const cssFilename = `styles.${cssHash}.css`
+  fs.writeFileSync(path.join(assetsDir, cssFilename), cssContent)
+  site.cssFilename = cssFilename
+
   fs.copyFileSync(faviconPath, path.join(distDir, "favicon.svg"))
   copyDir(imagesSrcDir, imagesDistDir)
   writeConsentScript()

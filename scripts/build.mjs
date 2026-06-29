@@ -7,10 +7,11 @@ const contentDir = path.join(rootDir, "content", "posts")
 const distDir = path.join(rootDir, "dist")
 const assetsDir = path.join(distDir, "assets")
 const stylesPath = path.join(rootDir, "src", "styles.css")
-const consentScriptPath = path.join(assetsDir, "consent.js")
 const faviconPath = path.join(rootDir, "src", "favicon.svg")
 const imagesSrcDir = path.join(rootDir, "src", "images")
 const imagesDistDir = path.join(assetsDir, "images")
+const fontsSrcDir = path.join(rootDir, "src", "fonts")
+const fontsDistDir = path.join(assetsDir, "fonts")
 
 const site = {
   title: "Jarrett Williams",
@@ -20,7 +21,10 @@ const site = {
   author: "Jarrett Williams",
   locale: "en_US",
   linkedin: "https://www.linkedin.com/in/jarrettwilliams/",
-  socialImagePath: "/assets/social-card.svg",
+  // Raster PNG card (committed under src/images/, regenerated via
+  // `node scripts/make-social-card.mjs`). PNG because most social platforms
+  // refuse to render an SVG og:image.
+  socialImagePath: "/assets/images/social-card.png",
 }
 
 const consentStorageKey = "jarrett_cookie_choice"
@@ -84,25 +88,48 @@ function slugify(value) {
 function renderInlineMarkdown(value) {
   const codeSnippets = []
 
-  let rendered = escapeHtml(value).replace(/`([^`]+)`/g, (_match, code) => {
-    const placeholder = `__CODE_${codeSnippets.length}__`
+  // Extract code spans from RAW text first (escaped exactly once below) so code
+  // containing <, >, & or $ is not double-escaped. The NUL-byte sentinel (\u0000)
+  // cannot appear in authored prose and survives escapeHtml, so restore never collides.
+  let rendered = value.replace(/`([^`]+)`/g, (_match, code) => {
+    const token = `\u0000${codeSnippets.length}\u0000`
     codeSnippets.push(`<code>${escapeHtml(code)}</code>`)
-    return placeholder
+    return token
   })
 
-  rendered = rendered
+  rendered = escapeHtml(rendered)
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, label, url) => {
-      const rel = /^https?:\/\//.test(url) ? ' rel="noopener noreferrer"' : ""
-      return `<a href="${url}"${rel}>${label}</a>`
+      return `<a href="${escapeAttribute(url)}" rel="noopener noreferrer">${label}</a>`
     })
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
 
-  codeSnippets.forEach((snippet, index) => {
-    rendered = rendered.replace(`__CODE_${index}__`, snippet)
-  })
+  // Function replacer (not a string) so "$" sequences inside code stay literal.
+  rendered = rendered.replace(/\u0000(\d+)\u0000/g, (_match, index) => codeSnippets[Number(index)])
 
   return rendered
+}
+
+// Decodes numeric and a few named HTML entities so a scheme cannot be smuggled
+// past the URL allowlist via encoding (e.g. "javascript&#58;alert(1)").
+function decodeEntities(value) {
+  return String(value)
+    .replace(/&#x([0-9a-f]+);?/gi, (_m, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);?/g, (_m, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&colon;/gi, ":")
+    .replace(/&tab;|&newline;/gi, "")
+    .replace(/&amp;/gi, "&")
+}
+
+// Allowlist of URL schemes for sanitized <a>/<img>. Relative, root-relative,
+// anchor and query URLs are allowed; otherwise only http/https/mailto. Control
+// and whitespace chars are stripped first so they cannot split a scheme.
+function isSafeUrl(value) {
+  const decoded = decodeEntities(value).replace(/[\u0000-\u0020]+/g, "").toLowerCase()
+  if (!/^[a-z][a-z0-9+.-]*:/.test(decoded)) {
+    return true // no explicit scheme -> relative/anchor/path URL
+  }
+  return /^(?:https?:|mailto:)/.test(decoded)
 }
 
 function sanitizeHtml(html) {
@@ -134,8 +161,13 @@ function sanitizeHtml(html) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/ on[a-z]+="[^"]*"/gi, "")
-    .replace(/ on[a-z]+='[^']*'/gi, "")
+    // Neutralize any "<" that opens a tag-like token but is never closed before
+    // the next "<" or end of input. Such malformed tags slip past the
+    // reconstruction pass below (which requires a closing ">") and could later
+    // be completed by an unrelated ">" elsewhere in the document.
+    .replace(/<(?=[/!a-z])(?![^<]*>)/gi, "&lt;")
+    // Strip inline event handlers, including UNQUOTED values (on...=foo).
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
     .replace(/javascript:/gi, "")
     .replace(/<\/*([a-z0-9:-]+)([^>]*)>/gi, (match, rawTag, rawAttrs) => {
       const tag = rawTag.toLowerCase()
@@ -150,34 +182,149 @@ function sanitizeHtml(html) {
       let attrs = rawAttrs || ""
       if (tag === "a") {
         const hrefMatch = attrs.match(/\shref=(["'])(.*?)\1/i)
-        if (!hrefMatch) {
+        if (!hrefMatch || !isSafeUrl(hrefMatch[2])) {
           return `<${tag}>`
         }
 
         const href = escapeAttribute(hrefMatch[2])
-        const rel = /^https?:\/\//i.test(href) ? ' rel="noopener noreferrer"' : ""
+        const rel = /^https?:\/\//i.test(decodeEntities(hrefMatch[2]).trim())
+          ? ' rel="noopener noreferrer"'
+          : ""
         return `<a href="${href}"${rel}>`
       }
 
       if (tag === "img") {
         const srcMatch = attrs.match(/\ssrc=(["'])(.*?)\1/i)
-        if (!srcMatch) {
+        if (!srcMatch || !isSafeUrl(srcMatch[2])) {
           return ""
         }
 
         const altMatch = attrs.match(/\salt=(["'])(.*?)\1/i)
         const src = escapeAttribute(srcMatch[2])
         const alt = altMatch ? escapeAttribute(altMatch[2]) : ""
-        return `<img src="${src}" alt="${alt}" />`
+
+        // Preserve dimensions (prevents layout shift) and lazy-loading.
+        const widthMatch = attrs.match(/\swidth=(["'])(\d{1,5})\1/i)
+        const heightMatch = attrs.match(/\sheight=(["'])(\d{1,5})\1/i)
+        const dims =
+          (widthMatch ? ` width="${widthMatch[2]}"` : "") +
+          (heightMatch ? ` height="${heightMatch[2]}"` : "")
+        const loadingMatch = attrs.match(/\sloading=(["'])(lazy|eager)\1/i)
+        const loading = ` loading="${loadingMatch ? loadingMatch[2].toLowerCase() : "lazy"}"`
+        const decoding = ' decoding="async"'
+
+        return `<img src="${src}" alt="${alt}"${dims}${loading}${decoding} />`
       }
 
       return `<${tag}>`
     })
 }
 
+// ---- Build-time syntax highlighting (class-based; CSP-safe, no inline styles) ----
+// Operates on RAW code and escapes every emitted chunk, so highlighted output is
+// HTML-safe and never routed through sanitizeHtml. Token colors live in styles.css.
+
+function normalizeLang(lang) {
+  const l = (lang || "").trim().toLowerCase()
+  if (["bash", "sh", "shell", "shell-session", "console", "zsh"].includes(l)) return "shell"
+  if (["powershell", "pwsh", "ps", "ps1"].includes(l)) return "powershell"
+  if (["json"].includes(l)) return "json"
+  if (["yaml", "yml"].includes(l)) return "yaml"
+  if (["js", "javascript", "ts", "typescript", "jsonc"].includes(l)) return "jslike"
+  return ""
+}
+
+const HIGHLIGHT_RULES = {
+  shell: [
+    ["comment", /#.*/y],
+    ["string", /"(?:\\.|[^"\\])*"|'[^']*'/y],
+    ["var", /\$\{[^}]*\}|\$[A-Za-z_]\w*/y],
+    ["flag", /(?<=^|\s)--?[A-Za-z][\w-]*/y],
+    ["keyword", /\b(?:if|then|else|elif|fi|for|in|do|done|while|case|esac|function|return|export|local|sudo|echo|cd|set)\b/y],
+    ["num", /\b\d+\b/y],
+  ],
+  powershell: [
+    ["comment", /#.*/y],
+    ["string", /"(?:`.|[^"])*"|'[^']*'/y],
+    ["var", /\$[A-Za-z_:][\w:]*/y],
+    ["fn", /\b[A-Z][a-z]+-[A-Z][A-Za-z]+\b/y],
+    ["flag", /(?<=\s)-[A-Za-z]\w*/y],
+    ["num", /\b\d+\b/y],
+  ],
+  json: [
+    ["key", /"(?:\\.|[^"\\])*"(?=\s*:)/y],
+    ["string", /"(?:\\.|[^"\\])*"/y],
+    ["bool", /\b(?:true|false|null)\b/y],
+    ["num", /-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/y],
+  ],
+  yaml: [
+    ["comment", /#.*/y],
+    ["key", /(?<=^|\n)\s*[A-Za-z_][\w.-]*(?=\s*:)/y],
+    ["string", /"(?:\\.|[^"\\])*"|'[^']*'/y],
+    ["bool", /\b(?:true|false|null|yes|no)\b/y],
+    ["num", /\b\d+(?:\.\d+)?\b/y],
+  ],
+  jslike: [
+    ["comment", /\/\/.*|\/\*[\s\S]*?\*\//y],
+    ["string", /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`/y],
+    ["keyword", /\b(?:const|let|var|function|return|if|else|for|while|import|export|from|class|new|await|async|try|catch|throw|typeof)\b/y],
+    ["bool", /\b(?:true|false|null|undefined)\b/y],
+    ["num", /\b\d+(?:\.\d+)?\b/y],
+  ],
+}
+
+function highlightCode(code, lang) {
+  const rules = HIGHLIGHT_RULES[normalizeLang(lang)]
+  if (!rules) return escapeHtml(code)
+  let out = ""
+  let i = 0
+  while (i < code.length) {
+    let matched = false
+    for (const [cls, re] of rules) {
+      re.lastIndex = i
+      const m = re.exec(code)
+      if (m && m.index === i && m[0].length > 0) {
+        out += `<span class="tok-${cls}">${escapeHtml(m[0])}</span>`
+        i += m[0].length
+        matched = true
+        break
+      }
+    }
+    if (!matched) {
+      out += escapeHtml(code[i])
+      i += 1
+    }
+  }
+  return out
+}
+
+// Strips inline markdown/html so a heading's text can become a slug or plain TOC label.
+function stripInline(text) {
+  return text
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/[`*_]/g, "")
+    .replace(/<[^>]+>/g, "")
+    .trim()
+}
+
+function uniqueHeadingId(text, used) {
+  const base = slugify(stripInline(text)) || "section"
+  let id = base
+  let n = 2
+  while (used.has(id)) {
+    id = `${base}-${n}`
+    n += 1
+  }
+  used.add(id)
+  return id
+}
+
+// Returns { html, headings } where headings is [{ level, text, id }] for h2/h3.
 function renderMarkdown(content) {
   const lines = content.replace(/\r\n/g, "\n").split("\n")
   const html = []
+  const headings = []
+  const usedIds = new Set()
   let index = 0
 
   while (index < lines.length) {
@@ -190,6 +337,7 @@ function renderMarkdown(content) {
     }
 
     if (trimmed.startsWith("```")) {
+      const lang = trimmed.slice(3).trim()
       const codeLines = []
       index += 1
 
@@ -202,7 +350,10 @@ function renderMarkdown(content) {
         index += 1
       }
 
-      html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`)
+      const code = codeLines.join("\n")
+      const langClass = normalizeLang(lang) ? ` class="language-${normalizeLang(lang)}"` : ""
+      const label = lang ? `<span class="code-lang">${escapeHtml(lang)}</span>` : ""
+      html.push(`<div class="code-block">${label}<pre><code${langClass}>${highlightCode(code, lang)}</code></pre></div>`)
       continue
     }
 
@@ -221,7 +372,14 @@ function renderMarkdown(content) {
     const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/)
     if (headingMatch) {
       const level = headingMatch[1].length
-      html.push(`<h${level}>${renderInlineMarkdown(headingMatch[2])}</h${level}>`)
+      const inner = renderInlineMarkdown(headingMatch[2])
+      if (level === 2 || level === 3) {
+        const id = uniqueHeadingId(headingMatch[2], usedIds)
+        headings.push({ level, text: stripInline(headingMatch[2]), id })
+        html.push(`<h${level} id="${id}"><a class="heading-anchor" href="#${id}" aria-label="Link to this section">#</a>${inner}</h${level}>`)
+      } else {
+        html.push(`<h${level}>${inner}</h${level}>`)
+      }
       index += 1
       continue
     }
@@ -283,7 +441,7 @@ function renderMarkdown(content) {
     html.push(`<p>${renderInlineMarkdown(paragraphLines.join(" "))}</p>`)
   }
 
-  return html.join("\n")
+  return { html: html.join("\n"), headings }
 }
 
 function parseFrontmatter(fileContents) {
@@ -335,22 +493,19 @@ function escapeAttribute(value) {
   return String(value).replace(/"/g, "&quot;")
 }
 
+// Renders structured data as an INLINE <script type="application/ld+json"> block.
+//
+// Note on CSP: a <script> whose type is not a JavaScript MIME type (here
+// application/ld+json) is an HTML "data block" — the browser never executes it,
+// so it is NOT subject to the script-src directive. That means inline JSON-LD
+// works under our strict `script-src 'self'` CSP with no 'unsafe-inline' and no
+// hash. (An external `src` is silently ignored for data blocks per the HTML
+// spec, which previously dropped our structured data entirely.) The JSON is
+// escaped for the one sequence that can break out of a script element: "</".
 function renderJsonLd(data) {
-  return `<script type="application/ld+json">${JSON.stringify(data)}</script>`
-}
-
-function createSocialCard(title, description) {
-  const safeTitle = escapeHtml(title)
-  const safeDescription = escapeHtml(description)
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="${safeTitle}">
-  <rect width="1200" height="630" fill="#0c0f17" />
-  <rect x="72" y="72" width="1056" height="486" rx="8" fill="#11151f" stroke="#1f2937" stroke-width="2" />
-  <text x="116" y="148" fill="#7dd3fc" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="1.5">JARRETT WILLIAMS</text>
-  <text x="116" y="240" fill="#e5e7eb" font-family="'Source Serif 4', Georgia, serif" font-size="52" font-weight="600">${safeTitle}</text>
-  <text x="116" y="308" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="22">${safeDescription}</text>
-  <text x="116" y="470" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="20">IT operations, systems engineering, and practical notes</text>
-</svg>`
+  const items = Array.isArray(data) ? data : [data]
+  const json = JSON.stringify(items).replace(/<\//g, "<\\/")
+  return `<script type="application/ld+json">${json}</script>`
 }
 
 function readPosts() {
@@ -368,6 +523,19 @@ function readPosts() {
       const basename = path.basename(filename, ".md")
       const fallbackSlug = slugify(basename.replace(/^\d{4}-\d{2}-\d{2}-/, ""))
       const slug = metadata.slug ? slugify(metadata.slug) : fallbackSlug
+      const { html, headings } = renderMarkdown(body)
+
+      // Tags: comma-separated frontmatter; keep a display label + a slug each.
+      const tags = (metadata.tags || "")
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .map((label) => ({ label, slug: slugify(label) }))
+        .filter((tag) => tag.slug)
+
+      // Reading time: ~220 wpm over the prose word count (min 1).
+      const words = body.replace(/```[\s\S]*?```/g, " ").split(/\s+/).filter(Boolean).length
+      const readingMinutes = Math.max(1, Math.round(words / 220))
 
       return {
         title: metadata.title || basename,
@@ -375,7 +543,10 @@ function readPosts() {
         description: metadata.description || "",
         slug,
         body,
-        html: renderMarkdown(body),
+        html,
+        headings,
+        tags,
+        readingMinutes,
       }
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -408,28 +579,15 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
     <meta name="twitter:title" content="${escapeHtml(title)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${socialImageUrl}" />
-    <meta name="theme-color" content="#0b1220" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&display=swap" rel="stylesheet" />
+    <meta name="theme-color" content="#0a0b10" />
+    <link rel="preload" href="/assets/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/assets/fonts/source-serif-4-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/atom+xml" title="${escapeHtml(site.title)} Feed" href="/feed.xml" />
     <link rel="stylesheet" href="/assets/${site.cssFilename}" />
-    <script src="/assets/consent.js" defer></script>
-    <script type="speculationrules">
-      {
-        "prefetch": [{
-          "tag": "prefetch-speculations",
-          "where": { "href_matches": "/*" },
-          "eagerness": "eager"
-        }],
-        "prerender": [{
-          "tag": "prerender-speculations",
-          "where": { "href_matches": "/*" },
-          "eagerness": "moderate"
-        }]
-      }
-    </script>
+    <script src="/assets/${site.consentFilename}" defer></script>
+    <script src="/assets/${site.searchFilename}" defer></script>
+    <script type="speculationrules" src="/assets/${site.speculationFilename}"></script>
     ${jsonLd}
   </head>
   <body>
@@ -440,9 +598,9 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
           <p class="tagline">IT operations, systems engineering, and practical notes</p>
         </div>
         <nav class="nav" aria-label="Main Navigation">
-          <a href="/">Home</a>
-          <a href="/blog/">Blog</a>
-          <a href="/about/">About</a>
+          <a href="/"${canonicalPath === "" ? ' aria-current="page"' : ""}>Home</a>
+          <a href="/blog/"${/^\/(blog|tags)\//.test(canonicalPath) ? ' aria-current="page"' : ""}>Blog</a>
+          <a href="/about/"${canonicalPath === "/about/" ? ' aria-current="page"' : ""}>About</a>
         </nav>
       </header>
       <main class="site-main">
@@ -472,70 +630,159 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
 </html>`
 }
 
-function renderHome(posts) {
-  const featuredPosts = posts.slice(0, 6)
-  const cards = featuredPosts
-    .map(
-      (post) => `<article class="post-card">
-        <time datetime="${post.date}">${formatDate(post.date)}</time>
-        <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
-        <p>${escapeHtml(post.description)}</p>
-      </article>`
-    )
+// Shared listing card with date, reading time, tag chips, and a stretched link
+// so the whole card is clickable while tag chips stay independently clickable.
+function renderPostCard(post, options = {}) {
+  const featured = options.featured ? " post-card-featured" : ""
+  const tags = post.tags
+    .slice(0, 3)
+    .map((tag) => `<a class="tag-chip" href="/tags/${tag.slug}/">${escapeHtml(tag.label)}</a>`)
     .join("")
+  const searchText = escapeAttribute(
+    [post.title, post.description, ...post.tags.map((tag) => tag.label)].join(" ").toLowerCase()
+  )
+  return `<article class="post-card${featured}" data-search-text="${searchText}">
+    <div class="post-card-meta">
+      <time datetime="${post.date}">${formatDate(post.date)}</time>
+      <span class="dot" aria-hidden="true">&middot;</span>
+      <span>${post.readingMinutes} min read</span>
+    </div>
+    <h3 class="post-card-title"><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
+    <p class="post-card-excerpt">${escapeHtml(post.description)}</p>
+    ${tags ? `<div class="tag-row">${tags}</div>` : ""}
+  </article>`
+}
+
+function renderSearch() {
+  return `<div class="search" data-search>
+    <label class="visually-hidden" for="site-search">Search posts</label>
+    <input id="site-search" class="search-input" type="search" placeholder="Search posts&hellip;" autocomplete="off" data-search-input />
+    <p class="search-empty" data-search-empty hidden>No posts match your search.</p>
+  </div>`
+}
+
+function renderHome(posts) {
+  const [lead, ...rest] = posts
+  const featured = lead ? renderPostCard(lead, { featured: true }) : ""
+  const grid = rest.slice(0, 4).map((post) => renderPostCard(post)).join("")
 
   return `
     <section class="home-hero">
-      <p class="eyebrow">Jarrett Williams</p>
-      <h1>Field notes on infrastructure, systems engineering, and keeping things stable.</h1>
-      <p class="lede">I'm a Staff Systems Engineer working across IT operations, cloud architecture, and automation. This is a running notebook of real-world migrations, identity cleanup, and the practical fixes that rarely fit neatly into vendor docs.</p>
-      <div class="button-row">
+      <p class="eyebrow">Jarrett Williams &middot; Staff Systems Engineer</p>
+      <h1>Field notes on <span class="accent-text">infrastructure</span>, identity, and keeping systems stable.</h1>
+      <p class="lede">A running notebook from across IT operations, cloud architecture, and automation &mdash; real migrations, identity cleanup, and the practical fixes that rarely fit neatly into vendor docs.</p>
+      <div class="hero-actions">
         <a class="button button-primary" href="/blog/">Read the blog</a>
-        <a class="button" href="/about/">About me</a>
+        <a class="text-link" href="/about/">About me &rarr;</a>
       </div>
     </section>
 
     <section class="listing-section">
       <div class="section-heading">
-        <h2>Recent posts</h2>
-        <a href="/blog/">View all →</a>
+        <h2>Latest writing</h2>
+        <a class="text-link" href="/blog/">All posts &rarr;</a>
       </div>
-      <div class="post-grid">${cards}</div>
+      ${featured}
+      <div class="post-grid post-grid-2">${grid}</div>
     </section>
   `
 }
 
-function renderBlogIndex(posts) {
-  const cards = posts
+function renderBlogIndex(posts, allTags) {
+  const cards = posts.map((post) => renderPostCard(post)).join("")
+  const filters = allTags
     .map(
-      (post) => `<article class="post-card">
-        <time datetime="${post.date}">${formatDate(post.date)}</time>
-        <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
-        <p>${escapeHtml(post.description)}</p>
-      </article>`
+      (tag) =>
+        `<a class="tag-chip" href="/tags/${tag.slug}/">${escapeHtml(tag.label)} <span class="tag-count">${tag.count}</span></a>`
     )
     .join("")
 
   return `
     <section class="page-intro">
       <p class="eyebrow">Blog</p>
-      <h1>Posts and walkthroughs</h1>
+      <h1>Posts &amp; walkthroughs</h1>
       <p class="lede">Real notes from endpoint work, datacenter visits, identity cleanup, and the systems work that usually has to be figured out in motion.</p>
     </section>
+    ${renderSearch()}
+    ${allTags.length ? `<nav class="tag-filter" aria-label="Filter by topic"><span class="tag-filter-label">Topics</span>${filters}</nav>` : ""}
     <section class="listing-section">
-      <div class="post-grid">${cards}</div>
+      <div class="post-grid post-grid-2" data-search-grid>${cards}</div>
     </section>
   `
 }
 
-function renderPost(post) {
-  return `<article>
-    <div class="post-header">
-      <time datetime="${post.date}">${formatDate(post.date)}</time>
-      <h1>${escapeHtml(post.title)}</h1>
-    </div>
-    <div class="post-content">${post.html}</div>
-  </article>`
+function renderToc(headings) {
+  const items = headings
+    .map(
+      (heading) =>
+        `<li class="toc-h${heading.level}"><a href="#${heading.id}">${escapeHtml(heading.text)}</a></li>`
+    )
+    .join("")
+  return `<nav class="post-toc" aria-label="Table of contents">
+    <p class="post-toc-title">On this page</p>
+    <ul>${items}</ul>
+  </nav>`
+}
+
+function renderPrevNext(prev, next) {
+  if (!prev && !next) {
+    return ""
+  }
+  const cell = (post, dir, label) =>
+    post
+      ? `<a class="prevnext-link prevnext-${dir}" href="/blog/${post.slug}/">
+          <span class="prevnext-label">${label}</span>
+          <span class="prevnext-title">${escapeHtml(post.title)}</span>
+        </a>`
+      : `<span class="prevnext-spacer"></span>`
+  return `<nav class="prevnext" aria-label="More posts">
+    ${cell(prev, "prev", "&larr; Older")}
+    ${cell(next, "next", "Newer &rarr;")}
+  </nav>`
+}
+
+function renderPost(post, neighbors = {}) {
+  const { prev, next } = neighbors
+  const toc = post.headings.length >= 3 ? renderToc(post.headings) : ""
+  const tags = post.tags
+    .map((tag) => `<a class="tag-chip" href="/tags/${tag.slug}/">${escapeHtml(tag.label)}</a>`)
+    .join("")
+
+  return `<div class="post-panel${toc ? " has-toc" : ""}">
+    ${toc}
+    <article class="post-article">
+      <header class="post-masthead">
+        <p class="eyebrow">Article</p>
+        <h1>${escapeHtml(post.title)}</h1>
+        <div class="post-meta">
+          <time datetime="${post.date}">${formatDate(post.date)}</time>
+          <span class="dot" aria-hidden="true">&middot;</span>
+          <span>${post.readingMinutes} min read</span>
+        </div>
+      </header>
+      <div class="post-content">${post.html}</div>
+      <footer class="post-footer">
+        ${tags ? `<div class="tag-row tag-row-footer">${tags}</div>` : ""}
+        ${renderPrevNext(prev, next)}
+        <a class="text-link" href="/blog/">&larr; Back to all posts</a>
+      </footer>
+    </article>
+  </div>`
+}
+
+function renderTagPage(tag, posts) {
+  const cards = posts.map((post) => renderPostCard(post)).join("")
+  return `
+    <section class="page-intro">
+      <p class="eyebrow">Topic</p>
+      <h1>${escapeHtml(tag.label)}</h1>
+      <p class="lede">${posts.length} post${posts.length === 1 ? "" : "s"} tagged &ldquo;${escapeHtml(tag.label)}&rdquo;.</p>
+      <a class="text-link" href="/blog/">&larr; All posts</a>
+    </section>
+    <section class="listing-section">
+      <div class="post-grid post-grid-2">${cards}</div>
+    </section>
+  `
 }
 
 function baseStructuredData() {
@@ -693,8 +940,8 @@ function renderCookies() {
   `
 }
 
-function writeConsentScript() {
-  const script = `(() => {
+function buildConsentScript() {
+  return `(() => {
   const storageKey = ${JSON.stringify(consentStorageKey)};
   const banner = document.querySelector("[data-cookie-banner]");
   if (!banner) return;
@@ -726,19 +973,65 @@ function writeConsentScript() {
     });
   });
 })();`
+}
 
-  fs.writeFileSync(consentScriptPath, script)
+// Client-side post search: filters server-rendered cards by their
+// data-search-text attribute. No fetch, no innerHTML — CSP- and XSS-safe.
+function buildSearchScript() {
+  return `(() => {
+  const root = document.querySelector("[data-search]");
+  const grid = document.querySelector("[data-search-grid]");
+  if (!root || !grid) return;
+  const input = root.querySelector("[data-search-input]");
+  const empty = root.querySelector("[data-search-empty]");
+  if (!input) return;
+  const cards = Array.prototype.slice.call(grid.querySelectorAll("[data-search-text]"));
+
+  const apply = () => {
+    const q = input.value.trim().toLowerCase();
+    let visible = 0;
+    cards.forEach((card) => {
+      const match = !q || card.getAttribute("data-search-text").indexOf(q) !== -1;
+      card.hidden = !match;
+      if (match) visible += 1;
+    });
+    if (empty) empty.hidden = visible !== 0;
+  };
+
+  input.addEventListener("input", apply);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "/" || event.metaKey || event.ctrlKey) return;
+    const active = document.activeElement;
+    const typing = active && /^(input|textarea|select)$/i.test(active.tagName || "");
+    if (!typing) {
+      event.preventDefault();
+      input.focus();
+    }
+  });
+})();`
 }
 
 function writeHeadersFile() {
   const headers = `/*
-  Content-Security-Policy: default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  X-Permitted-Cross-Domain-Policies: none
   Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   X-Robots-Tag: index, follow
+
+# Everything under /assets/ is content-addressed (hashed CSS/JS/JSON) or
+# content-stable (subset fonts, generated images), so it can be cached forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/favicon.svg
+  Cache-Control: public, max-age=604800
 
 /feed.xml
   Content-Type: application/atom+xml; charset=utf-8
@@ -759,22 +1052,65 @@ function writePage(relativePath, html) {
   fs.writeFileSync(outputPath, html)
 }
 
+// Writes content to /assets/<name>.<hash><ext> and returns the hashed filename.
+// Content-addressing lets every /assets/ file be cached immutably (see _headers).
+function writeHashedAsset(basename, content) {
+  const hash = crypto.createHash("md5").update(content).digest("hex").slice(0, 8)
+  const dotIndex = basename.lastIndexOf(".")
+  const filename = `${basename.slice(0, dotIndex)}.${hash}${basename.slice(dotIndex)}`
+  fs.writeFileSync(path.join(assetsDir, filename), content)
+  return filename
+}
+
 function build() {
   const posts = readPosts()
   cleanDir(distDir)
   ensureDir(assetsDir)
   
-  // Read and hash CSS for cache busting
-  const cssContent = fs.readFileSync(stylesPath, "utf8")
-  const cssHash = crypto.createHash("md5").update(cssContent).digest("hex").slice(0, 8)
-  const cssFilename = `styles.${cssHash}.css`
-  fs.writeFileSync(path.join(assetsDir, cssFilename), cssContent)
-  site.cssFilename = cssFilename
+  // Hash long-lived assets so they can be served immutable (see _headers).
+  site.cssFilename = writeHashedAsset("styles.css", fs.readFileSync(stylesPath, "utf8"))
+  site.consentFilename = writeHashedAsset("consent.js", buildConsentScript())
+
+  // External speculation rules (allows stricter CSP without 'unsafe-inline').
+  // Unlike JSON-LD data blocks, speculation-rules DO honor an external `src`
+  // (Chrome 121+), so this stays external and keeps script-src free of inline.
+  // prefetch uses 'moderate' (not 'eager') to avoid prefetching every link on
+  // load and overlapping with the prerender rule below.
+  const speculationRules = {
+    "prefetch": [{
+      "tag": "prefetch-speculations",
+      "where": { "href_matches": "/*" },
+      "eagerness": "moderate"
+    }],
+    "prerender": [{
+      "tag": "prerender-speculations",
+      "where": { "href_matches": "/*" },
+      "eagerness": "moderate"
+    }]
+  }
+  site.speculationFilename = writeHashedAsset("speculationrules.json", JSON.stringify(speculationRules))
+
+  // Aggregate tags across posts (by count, then label) for filters and tag pages.
+  const tagMap = new Map()
+  for (const post of posts) {
+    for (const tag of post.tags) {
+      const entry = tagMap.get(tag.slug) || { ...tag, count: 0, posts: [] }
+      entry.count += 1
+      entry.posts.push(post)
+      tagMap.set(tag.slug, entry)
+    }
+  }
+  const allTags = [...tagMap.values()].sort(
+    (a, b) => b.count - a.count || a.label.localeCompare(b.label)
+  )
+
+  // Client-side search filters the server-rendered cards by a data attribute, so
+  // it needs no fetched index and never touches innerHTML (CSP- and XSS-safe).
+  site.searchFilename = writeHashedAsset("search.js", buildSearchScript())
 
   fs.copyFileSync(faviconPath, path.join(distDir, "favicon.svg"))
   copyDir(imagesSrcDir, imagesDistDir)
-  writeConsentScript()
-  fs.writeFileSync(path.join(assetsDir, "social-card.svg"), createSocialCard(site.title, site.description))
+  copyDir(fontsSrcDir, fontsDistDir)
   writeHeadersFile()
 
   writePage(
@@ -784,7 +1120,7 @@ function build() {
       description: site.description,
       canonicalPath: "",
       content: renderHome(posts),
-      jsonLd: homeStructuredData().map(renderJsonLd).join(""),
+      jsonLd: renderJsonLd(homeStructuredData()),
     })
   )
 
@@ -794,22 +1130,38 @@ function build() {
       title: `Blog | ${site.title}`,
       description: site.description,
       canonicalPath: "/blog/",
-      content: renderBlogIndex(posts),
+      content: renderBlogIndex(posts, allTags),
       jsonLd: renderJsonLd(blogIndexStructuredData(posts)),
     })
   )
 
-  for (const post of posts) {
+  posts.forEach((post, i) => {
     writePage(
       path.join("blog", post.slug, "index.html"),
       pageTemplate({
         title: `${post.title} | ${site.title}`,
         description: post.description,
         canonicalPath: `/blog/${post.slug}/`,
-        content: renderPost(post),
+        content: renderPost(post, { prev: posts[i + 1], next: posts[i - 1] }),
         jsonLd: renderJsonLd(postStructuredData(post)),
         ogType: "article",
         postDate: post.date,
+      })
+    )
+  })
+
+  // One page per tag at /tags/<slug>/.
+  for (const tag of allTags) {
+    writePage(
+      path.join("tags", tag.slug, "index.html"),
+      pageTemplate({
+        title: `${tag.label} | ${site.title}`,
+        description: `Posts tagged ${tag.label} on ${site.title}.`,
+        canonicalPath: `/tags/${tag.slug}/`,
+        content: renderTagPage(tag, tag.posts),
+        jsonLd: renderJsonLd(
+          pageStructuredData(`${tag.label} | ${site.title}`, `/tags/${tag.slug}/`, `Posts tagged ${tag.label}.`)
+        ),
       })
     )
   }
@@ -859,6 +1211,7 @@ function build() {
     { path: "/blog/", lastmod: new Date().toISOString() },
     { path: "/about/", lastmod: new Date().toISOString() },
     ...posts.map((post) => ({ path: `/blog/${post.slug}/`, lastmod: isoDate(post.date) })),
+    ...allTags.map((tag) => ({ path: `/tags/${tag.slug}/`, lastmod: new Date().toISOString() })),
   ]
     .map((entry) => `<url><loc>${site.url}${entry.path}</loc><lastmod>${entry.lastmod}</lastmod></url>`)
     .join("")

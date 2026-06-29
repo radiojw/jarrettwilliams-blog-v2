@@ -3,6 +3,7 @@ title: "Disable the bluetooth menu on macOS with a mobileconfig .plist file"
 date: "2024-02-17"
 description: "How to disable the Bluetooth menu on macOS using a mobileconfig .plist file."
 slug: "disable-bluetooth-menu-macos"
+tags: "macOS, Endpoint Management, Configuration"
 ---
 
 I do not have a ton of time, but I do have a bluetooth problem.

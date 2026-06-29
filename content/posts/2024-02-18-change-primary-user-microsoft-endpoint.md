@@ -3,6 +3,7 @@ title: "How to change the primary user of a device in Microsoft Endpoint from th
 date: "2024-02-18"
 description: "A guide on updating the primary user of devices in Microsoft Endpoint using PowerShell and Graph API."
 slug: "change-primary-user-microsoft-endpoint"
+tags: "Microsoft Intune, PowerShell, Automation"
 ---
 
 <p>Alright, I figured it would be good to start posting some tips and tricks to the world. I manage a Microsoft 365 E5 environment and utilize Autopilot for the quick deployment of computers. As you go through hundreds of deployments, day after day, you do get set on autopilot. It works well. A year goes by and look at that, your IT Deployment techs are the primary users on so many laptops in Endpoint. How do we fix this?</p>

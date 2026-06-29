@@ -3,6 +3,7 @@ title: "Publishing a Static Site to Cloudflare Pages Without Making It a Whole P
 date: "2026-04-28"
 description: "A practical walkthrough for getting a simple static site onto Cloudflare Pages without turning deployment into a second job."
 slug: "publishing-a-static-site-to-cloudflare-pages"
+tags: "Cloudflare, Static Site, DevOps"
 ---
 
 I like static sites because they are simple in all the ways that usually matter later.

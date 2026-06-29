@@ -3,6 +3,7 @@ title: "How to remove empty groups in OKTA manually or via API?"
 date: "2025-02-25"
 description: "A guide on removing empty groups in OKTA using both manual and automated approaches."
 slug: "remove-empty-okta-groups"
+tags: "Okta, Identity, Automation"
 ---
 
 <h2>How do I remove empty groups in OKTA manually?</h2>

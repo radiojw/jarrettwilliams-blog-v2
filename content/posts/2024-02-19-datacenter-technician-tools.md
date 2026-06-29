@@ -3,6 +3,7 @@ title: "Essential Tools for a Datacenter Technician's Visit"
 date: "2024-02-19"
 description: "A comprehensive guide to the tools and equipment a datacenter technician needs for a successful site visit."
 slug: "datacenter-technician-tools"
+tags: "Datacenter, Hardware, Field Notes"
 ---
 
 <p>When a datacenter technician prepares for a site visit, having the right tools can make all the difference. Whether you're curious about what goes on behind the scenes in these digital powerhouses or considering a career in datacenter management, understanding the essential tools is a great place to start. Let's explore what a datacenter technician might pack for their next visit.</p>

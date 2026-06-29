@@ -220,9 +220,111 @@ function sanitizeHtml(html) {
     })
 }
 
+// ---- Build-time syntax highlighting (class-based; CSP-safe, no inline styles) ----
+// Operates on RAW code and escapes every emitted chunk, so highlighted output is
+// HTML-safe and never routed through sanitizeHtml. Token colors live in styles.css.
+
+function normalizeLang(lang) {
+  const l = (lang || "").trim().toLowerCase()
+  if (["bash", "sh", "shell", "shell-session", "console", "zsh"].includes(l)) return "shell"
+  if (["powershell", "pwsh", "ps", "ps1"].includes(l)) return "powershell"
+  if (["json"].includes(l)) return "json"
+  if (["yaml", "yml"].includes(l)) return "yaml"
+  if (["js", "javascript", "ts", "typescript", "jsonc"].includes(l)) return "jslike"
+  return ""
+}
+
+const HIGHLIGHT_RULES = {
+  shell: [
+    ["comment", /#.*/y],
+    ["string", /"(?:\\.|[^"\\])*"|'[^']*'/y],
+    ["var", /\$\{[^}]*\}|\$[A-Za-z_]\w*/y],
+    ["flag", /(?<=^|\s)--?[A-Za-z][\w-]*/y],
+    ["keyword", /\b(?:if|then|else|elif|fi|for|in|do|done|while|case|esac|function|return|export|local|sudo|echo|cd|set)\b/y],
+    ["num", /\b\d+\b/y],
+  ],
+  powershell: [
+    ["comment", /#.*/y],
+    ["string", /"(?:`.|[^"])*"|'[^']*'/y],
+    ["var", /\$[A-Za-z_:][\w:]*/y],
+    ["fn", /\b[A-Z][a-z]+-[A-Z][A-Za-z]+\b/y],
+    ["flag", /(?<=\s)-[A-Za-z]\w*/y],
+    ["num", /\b\d+\b/y],
+  ],
+  json: [
+    ["key", /"(?:\\.|[^"\\])*"(?=\s*:)/y],
+    ["string", /"(?:\\.|[^"\\])*"/y],
+    ["bool", /\b(?:true|false|null)\b/y],
+    ["num", /-?\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/y],
+  ],
+  yaml: [
+    ["comment", /#.*/y],
+    ["key", /(?<=^|\n)\s*[A-Za-z_][\w.-]*(?=\s*:)/y],
+    ["string", /"(?:\\.|[^"\\])*"|'[^']*'/y],
+    ["bool", /\b(?:true|false|null|yes|no)\b/y],
+    ["num", /\b\d+(?:\.\d+)?\b/y],
+  ],
+  jslike: [
+    ["comment", /\/\/.*|\/\*[\s\S]*?\*\//y],
+    ["string", /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`/y],
+    ["keyword", /\b(?:const|let|var|function|return|if|else|for|while|import|export|from|class|new|await|async|try|catch|throw|typeof)\b/y],
+    ["bool", /\b(?:true|false|null|undefined)\b/y],
+    ["num", /\b\d+(?:\.\d+)?\b/y],
+  ],
+}
+
+function highlightCode(code, lang) {
+  const rules = HIGHLIGHT_RULES[normalizeLang(lang)]
+  if (!rules) return escapeHtml(code)
+  let out = ""
+  let i = 0
+  while (i < code.length) {
+    let matched = false
+    for (const [cls, re] of rules) {
+      re.lastIndex = i
+      const m = re.exec(code)
+      if (m && m.index === i && m[0].length > 0) {
+        out += `<span class="tok-${cls}">${escapeHtml(m[0])}</span>`
+        i += m[0].length
+        matched = true
+        break
+      }
+    }
+    if (!matched) {
+      out += escapeHtml(code[i])
+      i += 1
+    }
+  }
+  return out
+}
+
+// Strips inline markdown/html so a heading's text can become a slug or plain TOC label.
+function stripInline(text) {
+  return text
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/[`*_]/g, "")
+    .replace(/<[^>]+>/g, "")
+    .trim()
+}
+
+function uniqueHeadingId(text, used) {
+  const base = slugify(stripInline(text)) || "section"
+  let id = base
+  let n = 2
+  while (used.has(id)) {
+    id = `${base}-${n}`
+    n += 1
+  }
+  used.add(id)
+  return id
+}
+
+// Returns { html, headings } where headings is [{ level, text, id }] for h2/h3.
 function renderMarkdown(content) {
   const lines = content.replace(/\r\n/g, "\n").split("\n")
   const html = []
+  const headings = []
+  const usedIds = new Set()
   let index = 0
 
   while (index < lines.length) {
@@ -235,6 +337,7 @@ function renderMarkdown(content) {
     }
 
     if (trimmed.startsWith("```")) {
+      const lang = trimmed.slice(3).trim()
       const codeLines = []
       index += 1
 
@@ -247,7 +350,10 @@ function renderMarkdown(content) {
         index += 1
       }
 
-      html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`)
+      const code = codeLines.join("\n")
+      const langClass = normalizeLang(lang) ? ` class="language-${normalizeLang(lang)}"` : ""
+      const label = lang ? `<span class="code-lang">${escapeHtml(lang)}</span>` : ""
+      html.push(`<div class="code-block">${label}<pre><code${langClass}>${highlightCode(code, lang)}</code></pre></div>`)
       continue
     }
 
@@ -266,7 +372,14 @@ function renderMarkdown(content) {
     const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/)
     if (headingMatch) {
       const level = headingMatch[1].length
-      html.push(`<h${level}>${renderInlineMarkdown(headingMatch[2])}</h${level}>`)
+      const inner = renderInlineMarkdown(headingMatch[2])
+      if (level === 2 || level === 3) {
+        const id = uniqueHeadingId(headingMatch[2], usedIds)
+        headings.push({ level, text: stripInline(headingMatch[2]), id })
+        html.push(`<h${level} id="${id}"><a class="heading-anchor" href="#${id}" aria-label="Link to this section">#</a>${inner}</h${level}>`)
+      } else {
+        html.push(`<h${level}>${inner}</h${level}>`)
+      }
       index += 1
       continue
     }
@@ -328,7 +441,7 @@ function renderMarkdown(content) {
     html.push(`<p>${renderInlineMarkdown(paragraphLines.join(" "))}</p>`)
   }
 
-  return html.join("\n")
+  return { html: html.join("\n"), headings }
 }
 
 function parseFrontmatter(fileContents) {
@@ -410,6 +523,19 @@ function readPosts() {
       const basename = path.basename(filename, ".md")
       const fallbackSlug = slugify(basename.replace(/^\d{4}-\d{2}-\d{2}-/, ""))
       const slug = metadata.slug ? slugify(metadata.slug) : fallbackSlug
+      const { html, headings } = renderMarkdown(body)
+
+      // Tags: comma-separated frontmatter; keep a display label + a slug each.
+      const tags = (metadata.tags || "")
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .map((label) => ({ label, slug: slugify(label) }))
+        .filter((tag) => tag.slug)
+
+      // Reading time: ~220 wpm over the prose word count (min 1).
+      const words = body.replace(/```[\s\S]*?```/g, " ").split(/\s+/).filter(Boolean).length
+      const readingMinutes = Math.max(1, Math.round(words / 220))
 
       return {
         title: metadata.title || basename,
@@ -417,7 +543,10 @@ function readPosts() {
         description: metadata.description || "",
         slug,
         body,
-        html: renderMarkdown(body),
+        html,
+        headings,
+        tags,
+        readingMinutes,
       }
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -457,6 +586,7 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
     <link rel="alternate" type="application/atom+xml" title="${escapeHtml(site.title)} Feed" href="/feed.xml" />
     <link rel="stylesheet" href="/assets/${site.cssFilename}" />
     <script src="/assets/${site.consentFilename}" defer></script>
+    <script src="/assets/${site.searchFilename}" defer></script>
     <script type="speculationrules" src="/assets/${site.speculationFilename}"></script>
     ${jsonLd}
   </head>
@@ -468,9 +598,9 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
           <p class="tagline">IT operations, systems engineering, and practical notes</p>
         </div>
         <nav class="nav" aria-label="Main Navigation">
-          <a href="/">Home</a>
-          <a href="/blog/">Blog</a>
-          <a href="/about/">About</a>
+          <a href="/"${canonicalPath === "" ? ' aria-current="page"' : ""}>Home</a>
+          <a href="/blog/"${/^\/(blog|tags)\//.test(canonicalPath) ? ' aria-current="page"' : ""}>Blog</a>
+          <a href="/about/"${canonicalPath === "/about/" ? ' aria-current="page"' : ""}>About</a>
         </nav>
       </header>
       <main class="site-main">
@@ -500,70 +630,159 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
 </html>`
 }
 
-function renderHome(posts) {
-  const featuredPosts = posts.slice(0, 6)
-  const cards = featuredPosts
-    .map(
-      (post) => `<article class="post-card">
-        <time datetime="${post.date}">${formatDate(post.date)}</time>
-        <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
-        <p>${escapeHtml(post.description)}</p>
-      </article>`
-    )
+// Shared listing card with date, reading time, tag chips, and a stretched link
+// so the whole card is clickable while tag chips stay independently clickable.
+function renderPostCard(post, options = {}) {
+  const featured = options.featured ? " post-card-featured" : ""
+  const tags = post.tags
+    .slice(0, 3)
+    .map((tag) => `<a class="tag-chip" href="/tags/${tag.slug}/">${escapeHtml(tag.label)}</a>`)
     .join("")
+  const searchText = escapeAttribute(
+    [post.title, post.description, ...post.tags.map((tag) => tag.label)].join(" ").toLowerCase()
+  )
+  return `<article class="post-card${featured}" data-search-text="${searchText}">
+    <div class="post-card-meta">
+      <time datetime="${post.date}">${formatDate(post.date)}</time>
+      <span class="dot" aria-hidden="true">&middot;</span>
+      <span>${post.readingMinutes} min read</span>
+    </div>
+    <h3 class="post-card-title"><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
+    <p class="post-card-excerpt">${escapeHtml(post.description)}</p>
+    ${tags ? `<div class="tag-row">${tags}</div>` : ""}
+  </article>`
+}
+
+function renderSearch() {
+  return `<div class="search" data-search>
+    <label class="visually-hidden" for="site-search">Search posts</label>
+    <input id="site-search" class="search-input" type="search" placeholder="Search posts&hellip;" autocomplete="off" data-search-input />
+    <p class="search-empty" data-search-empty hidden>No posts match your search.</p>
+  </div>`
+}
+
+function renderHome(posts) {
+  const [lead, ...rest] = posts
+  const featured = lead ? renderPostCard(lead, { featured: true }) : ""
+  const grid = rest.slice(0, 4).map((post) => renderPostCard(post)).join("")
 
   return `
     <section class="home-hero">
-      <p class="eyebrow">Jarrett Williams</p>
-      <h1>Field notes on infrastructure, systems engineering, and keeping things stable.</h1>
-      <p class="lede">I'm a Staff Systems Engineer working across IT operations, cloud architecture, and automation. This is a running notebook of real-world migrations, identity cleanup, and the practical fixes that rarely fit neatly into vendor docs.</p>
-      <div class="button-row">
+      <p class="eyebrow">Jarrett Williams &middot; Staff Systems Engineer</p>
+      <h1>Field notes on <span class="accent-text">infrastructure</span>, identity, and keeping systems stable.</h1>
+      <p class="lede">A running notebook from across IT operations, cloud architecture, and automation &mdash; real migrations, identity cleanup, and the practical fixes that rarely fit neatly into vendor docs.</p>
+      <div class="hero-actions">
         <a class="button button-primary" href="/blog/">Read the blog</a>
-        <a class="button" href="/about/">About me</a>
+        <a class="text-link" href="/about/">About me &rarr;</a>
       </div>
     </section>
 
     <section class="listing-section">
       <div class="section-heading">
-        <h2>Recent posts</h2>
-        <a href="/blog/">View all →</a>
+        <h2>Latest writing</h2>
+        <a class="text-link" href="/blog/">All posts &rarr;</a>
       </div>
-      <div class="post-grid">${cards}</div>
+      ${featured}
+      <div class="post-grid post-grid-2">${grid}</div>
     </section>
   `
 }
 
-function renderBlogIndex(posts) {
-  const cards = posts
+function renderBlogIndex(posts, allTags) {
+  const cards = posts.map((post) => renderPostCard(post)).join("")
+  const filters = allTags
     .map(
-      (post) => `<article class="post-card">
-        <time datetime="${post.date}">${formatDate(post.date)}</time>
-        <h3><a href="/blog/${post.slug}/">${escapeHtml(post.title)}</a></h3>
-        <p>${escapeHtml(post.description)}</p>
-      </article>`
+      (tag) =>
+        `<a class="tag-chip" href="/tags/${tag.slug}/">${escapeHtml(tag.label)} <span class="tag-count">${tag.count}</span></a>`
     )
     .join("")
 
   return `
     <section class="page-intro">
       <p class="eyebrow">Blog</p>
-      <h1>Posts and walkthroughs</h1>
+      <h1>Posts &amp; walkthroughs</h1>
       <p class="lede">Real notes from endpoint work, datacenter visits, identity cleanup, and the systems work that usually has to be figured out in motion.</p>
     </section>
+    ${renderSearch()}
+    ${allTags.length ? `<nav class="tag-filter" aria-label="Filter by topic"><span class="tag-filter-label">Topics</span>${filters}</nav>` : ""}
     <section class="listing-section">
-      <div class="post-grid">${cards}</div>
+      <div class="post-grid post-grid-2" data-search-grid>${cards}</div>
     </section>
   `
 }
 
-function renderPost(post) {
-  return `<article>
-    <div class="post-header">
-      <time datetime="${post.date}">${formatDate(post.date)}</time>
-      <h1>${escapeHtml(post.title)}</h1>
-    </div>
-    <div class="post-content">${post.html}</div>
-  </article>`
+function renderToc(headings) {
+  const items = headings
+    .map(
+      (heading) =>
+        `<li class="toc-h${heading.level}"><a href="#${heading.id}">${escapeHtml(heading.text)}</a></li>`
+    )
+    .join("")
+  return `<nav class="post-toc" aria-label="Table of contents">
+    <p class="post-toc-title">On this page</p>
+    <ul>${items}</ul>
+  </nav>`
+}
+
+function renderPrevNext(prev, next) {
+  if (!prev && !next) {
+    return ""
+  }
+  const cell = (post, dir, label) =>
+    post
+      ? `<a class="prevnext-link prevnext-${dir}" href="/blog/${post.slug}/">
+          <span class="prevnext-label">${label}</span>
+          <span class="prevnext-title">${escapeHtml(post.title)}</span>
+        </a>`
+      : `<span class="prevnext-spacer"></span>`
+  return `<nav class="prevnext" aria-label="More posts">
+    ${cell(prev, "prev", "&larr; Older")}
+    ${cell(next, "next", "Newer &rarr;")}
+  </nav>`
+}
+
+function renderPost(post, neighbors = {}) {
+  const { prev, next } = neighbors
+  const toc = post.headings.length >= 3 ? renderToc(post.headings) : ""
+  const tags = post.tags
+    .map((tag) => `<a class="tag-chip" href="/tags/${tag.slug}/">${escapeHtml(tag.label)}</a>`)
+    .join("")
+
+  return `<div class="post-panel${toc ? " has-toc" : ""}">
+    ${toc}
+    <article class="post-article">
+      <header class="post-masthead">
+        <p class="eyebrow">Article</p>
+        <h1>${escapeHtml(post.title)}</h1>
+        <div class="post-meta">
+          <time datetime="${post.date}">${formatDate(post.date)}</time>
+          <span class="dot" aria-hidden="true">&middot;</span>
+          <span>${post.readingMinutes} min read</span>
+        </div>
+      </header>
+      <div class="post-content">${post.html}</div>
+      <footer class="post-footer">
+        ${tags ? `<div class="tag-row tag-row-footer">${tags}</div>` : ""}
+        ${renderPrevNext(prev, next)}
+        <a class="text-link" href="/blog/">&larr; Back to all posts</a>
+      </footer>
+    </article>
+  </div>`
+}
+
+function renderTagPage(tag, posts) {
+  const cards = posts.map((post) => renderPostCard(post)).join("")
+  return `
+    <section class="page-intro">
+      <p class="eyebrow">Topic</p>
+      <h1>${escapeHtml(tag.label)}</h1>
+      <p class="lede">${posts.length} post${posts.length === 1 ? "" : "s"} tagged &ldquo;${escapeHtml(tag.label)}&rdquo;.</p>
+      <a class="text-link" href="/blog/">&larr; All posts</a>
+    </section>
+    <section class="listing-section">
+      <div class="post-grid post-grid-2">${cards}</div>
+    </section>
+  `
 }
 
 function baseStructuredData() {
@@ -756,6 +975,43 @@ function buildConsentScript() {
 })();`
 }
 
+// Client-side post search: filters server-rendered cards by their
+// data-search-text attribute. No fetch, no innerHTML — CSP- and XSS-safe.
+function buildSearchScript() {
+  return `(() => {
+  const root = document.querySelector("[data-search]");
+  const grid = document.querySelector("[data-search-grid]");
+  if (!root || !grid) return;
+  const input = root.querySelector("[data-search-input]");
+  const empty = root.querySelector("[data-search-empty]");
+  if (!input) return;
+  const cards = Array.prototype.slice.call(grid.querySelectorAll("[data-search-text]"));
+
+  const apply = () => {
+    const q = input.value.trim().toLowerCase();
+    let visible = 0;
+    cards.forEach((card) => {
+      const match = !q || card.getAttribute("data-search-text").indexOf(q) !== -1;
+      card.hidden = !match;
+      if (match) visible += 1;
+    });
+    if (empty) empty.hidden = visible !== 0;
+  };
+
+  input.addEventListener("input", apply);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "/" || event.metaKey || event.ctrlKey) return;
+    const active = document.activeElement;
+    const typing = active && /^(input|textarea|select)$/i.test(active.tagName || "");
+    if (!typing) {
+      event.preventDefault();
+      input.focus();
+    }
+  });
+})();`
+}
+
 function writeHeadersFile() {
   const headers = `/*
   Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
@@ -834,6 +1090,24 @@ function build() {
   }
   site.speculationFilename = writeHashedAsset("speculationrules.json", JSON.stringify(speculationRules))
 
+  // Aggregate tags across posts (by count, then label) for filters and tag pages.
+  const tagMap = new Map()
+  for (const post of posts) {
+    for (const tag of post.tags) {
+      const entry = tagMap.get(tag.slug) || { ...tag, count: 0, posts: [] }
+      entry.count += 1
+      entry.posts.push(post)
+      tagMap.set(tag.slug, entry)
+    }
+  }
+  const allTags = [...tagMap.values()].sort(
+    (a, b) => b.count - a.count || a.label.localeCompare(b.label)
+  )
+
+  // Client-side search filters the server-rendered cards by a data attribute, so
+  // it needs no fetched index and never touches innerHTML (CSP- and XSS-safe).
+  site.searchFilename = writeHashedAsset("search.js", buildSearchScript())
+
   fs.copyFileSync(faviconPath, path.join(distDir, "favicon.svg"))
   copyDir(imagesSrcDir, imagesDistDir)
   copyDir(fontsSrcDir, fontsDistDir)
@@ -856,22 +1130,38 @@ function build() {
       title: `Blog | ${site.title}`,
       description: site.description,
       canonicalPath: "/blog/",
-      content: renderBlogIndex(posts),
+      content: renderBlogIndex(posts, allTags),
       jsonLd: renderJsonLd(blogIndexStructuredData(posts)),
     })
   )
 
-  for (const post of posts) {
+  posts.forEach((post, i) => {
     writePage(
       path.join("blog", post.slug, "index.html"),
       pageTemplate({
         title: `${post.title} | ${site.title}`,
         description: post.description,
         canonicalPath: `/blog/${post.slug}/`,
-        content: renderPost(post),
+        content: renderPost(post, { prev: posts[i + 1], next: posts[i - 1] }),
         jsonLd: renderJsonLd(postStructuredData(post)),
         ogType: "article",
         postDate: post.date,
+      })
+    )
+  })
+
+  // One page per tag at /tags/<slug>/.
+  for (const tag of allTags) {
+    writePage(
+      path.join("tags", tag.slug, "index.html"),
+      pageTemplate({
+        title: `${tag.label} | ${site.title}`,
+        description: `Posts tagged ${tag.label} on ${site.title}.`,
+        canonicalPath: `/tags/${tag.slug}/`,
+        content: renderTagPage(tag, tag.posts),
+        jsonLd: renderJsonLd(
+          pageStructuredData(`${tag.label} | ${site.title}`, `/tags/${tag.slug}/`, `Posts tagged ${tag.label}.`)
+        ),
       })
     )
   }
@@ -921,6 +1211,7 @@ function build() {
     { path: "/blog/", lastmod: new Date().toISOString() },
     { path: "/about/", lastmod: new Date().toISOString() },
     ...posts.map((post) => ({ path: `/blog/${post.slug}/`, lastmod: isoDate(post.date) })),
+    ...allTags.map((tag) => ({ path: `/tags/${tag.slug}/`, lastmod: new Date().toISOString() })),
   ]
     .map((entry) => `<url><loc>${site.url}${entry.path}</loc><lastmod>${entry.lastmod}</lastmod></url>`)
     .join("")

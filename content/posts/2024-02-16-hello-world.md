@@ -3,6 +3,7 @@ title: "Hello world!"
 date: "2024-02-16"
 description: "Welcome to my new blog about Information Technology and System Administration."
 slug: "hello-world"
+tags: "Meta, Career"
 ---
 
 Welcome to my new blog about Information Technology and System Administration.

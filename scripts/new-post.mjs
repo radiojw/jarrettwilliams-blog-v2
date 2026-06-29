@@ -38,9 +38,8 @@ title: ${quote(title)}
 date: ${quote(date)}
 description: "Add a short description here."
 slug: ${quote(slug)}
+tags: "Tag One, Tag Two"
 ---
-
-# ${title}
 
 Write your post here.
 `

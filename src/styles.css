@@ -1,28 +1,62 @@
+/* Self-hosted, latin-subset variable fonts (no third-party origins; keeps CSP
+   first-party only). One file per family covers weights 400-700. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/assets/fonts/inter-var.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/assets/fonts/source-serif-4-var.woff2") format("woff2");
+}
+
 /* Design System & Variables */
 :root {
   color-scheme: dark;
-  
-  /* Colors */
-  --bg: #07090e;
-  --bg-offset: rgba(17, 24, 39, 0.55);
-  --card-bg: rgba(19, 24, 37, 0.7);
-  --card-border: rgba(255, 255, 255, 0.06);
-  --card-border-hover: rgba(96, 165, 250, 0.35);
-  
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #64748b;
-  
-  --accent: #60a5fa;
-  --accent-muted: rgba(96, 165, 250, 0.1);
+
+  /* Surfaces — unified near-black base (replaces 4 mismatched darks) */
+  --bg: #0a0b10;
+  --bg-elevated: #12141d;
+  --surface: #161922;
+  --surface-2: #1d212d;
+  --bg-offset: rgba(22, 25, 34, 0.6);
+  --card-bg: rgba(22, 25, 34, 0.72);
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --card-border: rgba(255, 255, 255, 0.07);
+  --card-border-hover: rgba(110, 168, 255, 0.4);
+
+  /* Text */
+  --text-primary: #f3f5fa;
+  --text-secondary: #c3c9d6;
+  --text-muted: #7b8394;
+
+  /* Accents — cool primary + warm signature (the two-tone identity) */
+  --accent: #6ea8ff;
   --accent-strong: #3b82f6;
-  
+  --accent-soft: rgba(110, 168, 255, 0.12);
+  --accent-muted: rgba(110, 168, 255, 0.1);
+  --gold: #ffb454;
+  --gold-soft: rgba(255, 180, 84, 0.14);
+
   /* Layout & Spacing */
-  --max-width: 1040px;
+  --max-width: 1080px;
   --content-width: 720px;
-  --radius: 12px;
-  --radius-sm: 6px;
-  
+  --measure: 68ch;
+  --radius: 14px;
+  --radius-sm: 7px;
+
+  /* Type */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+
   /* Transitions */
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -40,22 +74,42 @@ html {
 }
 
 body {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   background-color: var(--bg);
-  background-image: 
-    radial-gradient(circle at 50% -10%, rgba(96, 165, 250, 0.12), transparent 60%),
-    radial-gradient(circle at 0% 40%, rgba(30, 41, 59, 0.3), transparent 40%),
-    radial-gradient(circle at 100% 80%, rgba(30, 41, 59, 0.3), transparent 40%);
-  background-attachment: fixed;
+  background-image:
+    radial-gradient(720px circle at 50% -12%, var(--accent-soft), transparent 60%),
+    radial-gradient(560px circle at 100% 4%, var(--gold-soft), transparent 55%);
+  background-repeat: no-repeat;
   color: var(--text-secondary);
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Accessibility: visible keyboard focus + respect reduced-motion */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Typography */
 h1, h2, h3, h4 {
   color: var(--text-primary);
-  font-family: "Source Serif 4", Georgia, serif;
+  font-family: var(--font-serif);
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.02em;
@@ -117,7 +171,7 @@ a {
 }
 
 .brand {
-  font-family: "Source Serif 4", Georgia, serif;
+  font-family: var(--font-serif);
   font-size: 1.35rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -482,7 +536,7 @@ a {
   justify-content: center;
   font-size: 2.5rem;
   color: var(--text-primary);
-  font-family: "Source Serif 4", Georgia, serif;
+  font-family: var(--font-serif);
   font-weight: bold;
 }
 
@@ -568,7 +622,7 @@ a {
 }
 
 .cookie-title {
-  font-family: "Source Serif 4", Georgia, serif;
+  font-family: var(--font-serif);
   font-weight: 700;
   font-size: 1.15rem;
   color: var(--text-primary);
@@ -588,31 +642,6 @@ a {
 
 /* Responsive Styling */
 @media (max-width: 920px) {
-  .hero-grid {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    text-align: center;
-  }
-  
-  .panel-image {
-    order: -1;
-    max-width: 480px;
-    margin: 0 auto;
-    width: 100%;
-  }
-  
-  .split-grid {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    text-align: center;
-  }
-  
-  .split-grid .panel-image {
-    max-width: 480px;
-    margin: 0 auto;
-    width: 100%;
-  }
-  
   .post-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

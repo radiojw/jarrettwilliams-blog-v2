@@ -7,10 +7,11 @@ const contentDir = path.join(rootDir, "content", "posts")
 const distDir = path.join(rootDir, "dist")
 const assetsDir = path.join(distDir, "assets")
 const stylesPath = path.join(rootDir, "src", "styles.css")
-const consentScriptPath = path.join(assetsDir, "consent.js")
 const faviconPath = path.join(rootDir, "src", "favicon.svg")
 const imagesSrcDir = path.join(rootDir, "src", "images")
 const imagesDistDir = path.join(assetsDir, "images")
+const fontsSrcDir = path.join(rootDir, "src", "fonts")
+const fontsDistDir = path.join(assetsDir, "fonts")
 
 const site = {
   title: "Jarrett Williams",
@@ -20,7 +21,10 @@ const site = {
   author: "Jarrett Williams",
   locale: "en_US",
   linkedin: "https://www.linkedin.com/in/jarrettwilliams/",
-  socialImagePath: "/assets/social-card.svg",
+  // Raster PNG card (committed under src/images/, regenerated via
+  // `node scripts/make-social-card.mjs`). PNG because most social platforms
+  // refuse to render an SVG og:image.
+  socialImagePath: "/assets/images/social-card.png",
 }
 
 const consentStorageKey = "jarrett_cookie_choice"
@@ -84,25 +88,48 @@ function slugify(value) {
 function renderInlineMarkdown(value) {
   const codeSnippets = []
 
-  let rendered = escapeHtml(value).replace(/`([^`]+)`/g, (_match, code) => {
-    const placeholder = `__CODE_${codeSnippets.length}__`
+  // Extract code spans from RAW text first (escaped exactly once below) so code
+  // containing <, >, & or $ is not double-escaped. The NUL-byte sentinel (\u0000)
+  // cannot appear in authored prose and survives escapeHtml, so restore never collides.
+  let rendered = value.replace(/`([^`]+)`/g, (_match, code) => {
+    const token = `\u0000${codeSnippets.length}\u0000`
     codeSnippets.push(`<code>${escapeHtml(code)}</code>`)
-    return placeholder
+    return token
   })
 
-  rendered = rendered
+  rendered = escapeHtml(rendered)
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_match, label, url) => {
-      const rel = /^https?:\/\//.test(url) ? ' rel="noopener noreferrer"' : ""
-      return `<a href="${url}"${rel}>${label}</a>`
+      return `<a href="${escapeAttribute(url)}" rel="noopener noreferrer">${label}</a>`
     })
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
 
-  codeSnippets.forEach((snippet, index) => {
-    rendered = rendered.replace(`__CODE_${index}__`, snippet)
-  })
+  // Function replacer (not a string) so "$" sequences inside code stay literal.
+  rendered = rendered.replace(/\u0000(\d+)\u0000/g, (_match, index) => codeSnippets[Number(index)])
 
   return rendered
+}
+
+// Decodes numeric and a few named HTML entities so a scheme cannot be smuggled
+// past the URL allowlist via encoding (e.g. "javascript&#58;alert(1)").
+function decodeEntities(value) {
+  return String(value)
+    .replace(/&#x([0-9a-f]+);?/gi, (_m, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);?/g, (_m, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&colon;/gi, ":")
+    .replace(/&tab;|&newline;/gi, "")
+    .replace(/&amp;/gi, "&")
+}
+
+// Allowlist of URL schemes for sanitized <a>/<img>. Relative, root-relative,
+// anchor and query URLs are allowed; otherwise only http/https/mailto. Control
+// and whitespace chars are stripped first so they cannot split a scheme.
+function isSafeUrl(value) {
+  const decoded = decodeEntities(value).replace(/[\u0000-\u0020]+/g, "").toLowerCase()
+  if (!/^[a-z][a-z0-9+.-]*:/.test(decoded)) {
+    return true // no explicit scheme -> relative/anchor/path URL
+  }
+  return /^(?:https?:|mailto:)/.test(decoded)
 }
 
 function sanitizeHtml(html) {
@@ -134,8 +161,13 @@ function sanitizeHtml(html) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/ on[a-z]+="[^"]*"/gi, "")
-    .replace(/ on[a-z]+='[^']*'/gi, "")
+    // Neutralize any "<" that opens a tag-like token but is never closed before
+    // the next "<" or end of input. Such malformed tags slip past the
+    // reconstruction pass below (which requires a closing ">") and could later
+    // be completed by an unrelated ">" elsewhere in the document.
+    .replace(/<(?=[/!a-z])(?![^<]*>)/gi, "&lt;")
+    // Strip inline event handlers, including UNQUOTED values (on...=foo).
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
     .replace(/javascript:/gi, "")
     .replace(/<\/*([a-z0-9:-]+)([^>]*)>/gi, (match, rawTag, rawAttrs) => {
       const tag = rawTag.toLowerCase()
@@ -150,25 +182,38 @@ function sanitizeHtml(html) {
       let attrs = rawAttrs || ""
       if (tag === "a") {
         const hrefMatch = attrs.match(/\shref=(["'])(.*?)\1/i)
-        if (!hrefMatch) {
+        if (!hrefMatch || !isSafeUrl(hrefMatch[2])) {
           return `<${tag}>`
         }
 
         const href = escapeAttribute(hrefMatch[2])
-        const rel = /^https?:\/\//i.test(href) ? ' rel="noopener noreferrer"' : ""
+        const rel = /^https?:\/\//i.test(decodeEntities(hrefMatch[2]).trim())
+          ? ' rel="noopener noreferrer"'
+          : ""
         return `<a href="${href}"${rel}>`
       }
 
       if (tag === "img") {
         const srcMatch = attrs.match(/\ssrc=(["'])(.*?)\1/i)
-        if (!srcMatch) {
+        if (!srcMatch || !isSafeUrl(srcMatch[2])) {
           return ""
         }
 
         const altMatch = attrs.match(/\salt=(["'])(.*?)\1/i)
         const src = escapeAttribute(srcMatch[2])
         const alt = altMatch ? escapeAttribute(altMatch[2]) : ""
-        return `<img src="${src}" alt="${alt}" />`
+
+        // Preserve dimensions (prevents layout shift) and lazy-loading.
+        const widthMatch = attrs.match(/\swidth=(["'])(\d{1,5})\1/i)
+        const heightMatch = attrs.match(/\sheight=(["'])(\d{1,5})\1/i)
+        const dims =
+          (widthMatch ? ` width="${widthMatch[2]}"` : "") +
+          (heightMatch ? ` height="${heightMatch[2]}"` : "")
+        const loadingMatch = attrs.match(/\sloading=(["'])(lazy|eager)\1/i)
+        const loading = ` loading="${loadingMatch ? loadingMatch[2].toLowerCase() : "lazy"}"`
+        const decoding = ' decoding="async"'
+
+        return `<img src="${src}" alt="${alt}"${dims}${loading}${decoding} />`
       }
 
       return `<${tag}>`
@@ -335,22 +380,19 @@ function escapeAttribute(value) {
   return String(value).replace(/"/g, "&quot;")
 }
 
+// Renders structured data as an INLINE <script type="application/ld+json"> block.
+//
+// Note on CSP: a <script> whose type is not a JavaScript MIME type (here
+// application/ld+json) is an HTML "data block" — the browser never executes it,
+// so it is NOT subject to the script-src directive. That means inline JSON-LD
+// works under our strict `script-src 'self'` CSP with no 'unsafe-inline' and no
+// hash. (An external `src` is silently ignored for data blocks per the HTML
+// spec, which previously dropped our structured data entirely.) The JSON is
+// escaped for the one sequence that can break out of a script element: "</".
 function renderJsonLd(data) {
-  return `<script type="application/ld+json">${JSON.stringify(data)}</script>`
-}
-
-function createSocialCard(title, description) {
-  const safeTitle = escapeHtml(title)
-  const safeDescription = escapeHtml(description)
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="${safeTitle}">
-  <rect width="1200" height="630" fill="#0c0f17" />
-  <rect x="72" y="72" width="1056" height="486" rx="8" fill="#11151f" stroke="#1f2937" stroke-width="2" />
-  <text x="116" y="148" fill="#7dd3fc" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="1.5">JARRETT WILLIAMS</text>
-  <text x="116" y="240" fill="#e5e7eb" font-family="'Source Serif 4', Georgia, serif" font-size="52" font-weight="600">${safeTitle}</text>
-  <text x="116" y="308" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="22">${safeDescription}</text>
-  <text x="116" y="470" fill="#64748b" font-family="Inter, Arial, sans-serif" font-size="20">IT operations, systems engineering, and practical notes</text>
-</svg>`
+  const items = Array.isArray(data) ? data : [data]
+  const json = JSON.stringify(items).replace(/<\//g, "<\\/")
+  return `<script type="application/ld+json">${json}</script>`
 }
 
 function readPosts() {
@@ -415,21 +457,8 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/atom+xml" title="${escapeHtml(site.title)} Feed" href="/feed.xml" />
     <link rel="stylesheet" href="/assets/${site.cssFilename}" />
-    <script src="/assets/consent.js" defer></script>
-    <script type="speculationrules">
-      {
-        "prefetch": [{
-          "tag": "prefetch-speculations",
-          "where": { "href_matches": "/*" },
-          "eagerness": "eager"
-        }],
-        "prerender": [{
-          "tag": "prerender-speculations",
-          "where": { "href_matches": "/*" },
-          "eagerness": "moderate"
-        }]
-      }
-    </script>
+    <script src="/assets/${site.consentFilename}" defer></script>
+    <script type="speculationrules" src="/assets/${site.speculationFilename}"></script>
     ${jsonLd}
   </head>
   <body>
@@ -693,8 +722,8 @@ function renderCookies() {
   `
 }
 
-function writeConsentScript() {
-  const script = `(() => {
+function buildConsentScript() {
+  return `(() => {
   const storageKey = ${JSON.stringify(consentStorageKey)};
   const banner = document.querySelector("[data-cookie-banner]");
   if (!banner) return;
@@ -726,19 +755,28 @@ function writeConsentScript() {
     });
   });
 })();`
-
-  fs.writeFileSync(consentScriptPath, script)
 }
 
 function writeHeadersFile() {
   const headers = `/*
-  Content-Security-Policy: default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self' https://fonts.googleapis.com; script-src 'self'; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  X-Permitted-Cross-Domain-Policies: none
   Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   X-Robots-Tag: index, follow
+
+# Everything under /assets/ is content-addressed (hashed CSS/JS/JSON) or
+# content-stable (subset fonts, generated images), so it can be cached forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/favicon.svg
+  Cache-Control: public, max-age=604800
 
 /feed.xml
   Content-Type: application/atom+xml; charset=utf-8
@@ -759,22 +797,47 @@ function writePage(relativePath, html) {
   fs.writeFileSync(outputPath, html)
 }
 
+// Writes content to /assets/<name>.<hash><ext> and returns the hashed filename.
+// Content-addressing lets every /assets/ file be cached immutably (see _headers).
+function writeHashedAsset(basename, content) {
+  const hash = crypto.createHash("md5").update(content).digest("hex").slice(0, 8)
+  const dotIndex = basename.lastIndexOf(".")
+  const filename = `${basename.slice(0, dotIndex)}.${hash}${basename.slice(dotIndex)}`
+  fs.writeFileSync(path.join(assetsDir, filename), content)
+  return filename
+}
+
 function build() {
   const posts = readPosts()
   cleanDir(distDir)
   ensureDir(assetsDir)
   
-  // Read and hash CSS for cache busting
-  const cssContent = fs.readFileSync(stylesPath, "utf8")
-  const cssHash = crypto.createHash("md5").update(cssContent).digest("hex").slice(0, 8)
-  const cssFilename = `styles.${cssHash}.css`
-  fs.writeFileSync(path.join(assetsDir, cssFilename), cssContent)
-  site.cssFilename = cssFilename
+  // Hash long-lived assets so they can be served immutable (see _headers).
+  site.cssFilename = writeHashedAsset("styles.css", fs.readFileSync(stylesPath, "utf8"))
+  site.consentFilename = writeHashedAsset("consent.js", buildConsentScript())
+
+  // External speculation rules (allows stricter CSP without 'unsafe-inline').
+  // Unlike JSON-LD data blocks, speculation-rules DO honor an external `src`
+  // (Chrome 121+), so this stays external and keeps script-src free of inline.
+  // prefetch uses 'moderate' (not 'eager') to avoid prefetching every link on
+  // load and overlapping with the prerender rule below.
+  const speculationRules = {
+    "prefetch": [{
+      "tag": "prefetch-speculations",
+      "where": { "href_matches": "/*" },
+      "eagerness": "moderate"
+    }],
+    "prerender": [{
+      "tag": "prerender-speculations",
+      "where": { "href_matches": "/*" },
+      "eagerness": "moderate"
+    }]
+  }
+  site.speculationFilename = writeHashedAsset("speculationrules.json", JSON.stringify(speculationRules))
 
   fs.copyFileSync(faviconPath, path.join(distDir, "favicon.svg"))
   copyDir(imagesSrcDir, imagesDistDir)
-  writeConsentScript()
-  fs.writeFileSync(path.join(assetsDir, "social-card.svg"), createSocialCard(site.title, site.description))
+  copyDir(fontsSrcDir, fontsDistDir)
   writeHeadersFile()
 
   writePage(
@@ -784,7 +847,7 @@ function build() {
       description: site.description,
       canonicalPath: "",
       content: renderHome(posts),
-      jsonLd: homeStructuredData().map(renderJsonLd).join(""),
+      jsonLd: renderJsonLd(homeStructuredData()),
     })
   )
 

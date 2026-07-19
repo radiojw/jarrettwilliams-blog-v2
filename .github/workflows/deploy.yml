@@ -1,16 +1,24 @@
-name: Build Site
+name: Deploy Site
 
 on:
-  pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
-# Least-privilege permissions for public repo
+# Least-privilege permissions for this public repository.
 permissions:
   contents: read
 
+# Never let two production syncs race each other.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -31,9 +39,24 @@ jobs:
       - name: Build static site
         run: npm run build
 
-      - name: Upload build artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: static-site
-          path: dist
+      - name: Load deploy key
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          eval "$(ssh-agent -s)"
+          ssh-add - <<< "$VPS_SSH_KEY"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+
+      - name: Trust VPS host key
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: rsync -av --delete dist/ "debian@$VPS_HOST:/srv/sites/jarrettwilliams.com/public/"

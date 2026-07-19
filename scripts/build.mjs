@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import crypto from "node:crypto"
+import { createSocialCardPng } from "./make-social-card.mjs"
 
 const rootDir = process.cwd()
 const contentDir = path.join(rootDir, "content", "posts")
@@ -83,6 +84,18 @@ function slugify(value) {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
+}
+
+function generatePostSocialCards(posts) {
+  ensureDir(imagesDistDir)
+
+  for (const post of posts) {
+    const png = createSocialCardPng({ title: post.title })
+    const hash = crypto.createHash("md5").update(png).digest("hex").slice(0, 8)
+    const filename = `social-card-${post.slug}.${hash}.png`
+    fs.writeFileSync(path.join(imagesDistDir, filename), png)
+    post.socialImagePath = `/assets/images/${filename}`
+  }
 }
 
 function renderInlineMarkdown(value) {
@@ -584,6 +597,7 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
     <link rel="preload" href="/assets/fonts/source-serif-4-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="alternate" type="application/atom+xml" title="${escapeHtml(site.title)} Feed" href="/feed.xml" />
+    <link rel="alternate" type="application/feed+json" title="${escapeHtml(site.title)} JSON Feed" href="/feed.json" />
     <link rel="stylesheet" href="/assets/${site.cssFilename}" />
     <script src="/assets/${site.consentFilename}" defer></script>
     <script src="/assets/${site.searchFilename}" defer></script>
@@ -741,8 +755,40 @@ function renderPrevNext(prev, next) {
   </nav>`
 }
 
+function getRelatedPosts(post, posts) {
+  const tagSlugs = new Set(post.tags.map((tag) => tag.slug))
+
+  return posts
+    .filter((candidate) => candidate.slug !== post.slug)
+    .map((candidate) => ({
+      post: candidate,
+      sharedTags: candidate.tags.filter((tag) => tagSlugs.has(tag.slug)).length,
+    }))
+    .filter((candidate) => candidate.sharedTags > 0)
+    .sort(
+      (a, b) =>
+        b.sharedTags - a.sharedTags ||
+        new Date(b.post.date).getTime() - new Date(a.post.date).getTime() ||
+        a.post.slug.localeCompare(b.post.slug)
+    )
+    .slice(0, 3)
+    .map((candidate) => candidate.post)
+}
+
+function renderRelatedPosts(posts) {
+  if (!posts.length) {
+    return ""
+  }
+
+  const cards = posts.map((post) => renderPostCard(post)).join("")
+  return `<section class="listing-section" aria-labelledby="related-posts-heading">
+    <div class="section-heading"><h2 id="related-posts-heading">Related</h2></div>
+    <div class="post-grid post-grid-2">${cards}</div>
+  </section>`
+}
+
 function renderPost(post, neighbors = {}) {
-  const { prev, next } = neighbors
+  const { prev, next, related = [] } = neighbors
   const toc = post.headings.length >= 3 ? renderToc(post.headings) : ""
   const tags = post.tags
     .map((tag) => `<a class="tag-chip" href="/tags/${tag.slug}/">${escapeHtml(tag.label)}</a>`)
@@ -764,6 +810,7 @@ function renderPost(post, neighbors = {}) {
       <footer class="post-footer">
         ${tags ? `<div class="tag-row tag-row-footer">${tags}</div>` : ""}
         ${renderPrevNext(prev, next)}
+        ${renderRelatedPosts(related)}
         <a class="text-link" href="/blog/">&larr; Back to all posts</a>
       </footer>
     </article>
@@ -866,7 +913,7 @@ function postStructuredData(post) {
       url: site.url,
     },
     mainEntityOfPage: `${site.url}/blog/${post.slug}/`,
-    image: [toAbsoluteUrl(site.socialImagePath)],
+    image: [toAbsoluteUrl(post.socialImagePath || site.socialImagePath)],
   }
 }
 
@@ -1036,6 +1083,9 @@ function writeHeadersFile() {
 /feed.xml
   Content-Type: application/atom+xml; charset=utf-8
 
+/feed.json
+  Content-Type: application/feed+json; charset=utf-8
+
 /sitemap.xml
   Content-Type: application/xml; charset=utf-8
 
@@ -1110,6 +1160,7 @@ function build() {
 
   fs.copyFileSync(faviconPath, path.join(distDir, "favicon.svg"))
   copyDir(imagesSrcDir, imagesDistDir)
+  generatePostSocialCards(posts)
   copyDir(fontsSrcDir, fontsDistDir)
   writeHeadersFile()
 
@@ -1142,7 +1193,12 @@ function build() {
         title: `${post.title} | ${site.title}`,
         description: post.description,
         canonicalPath: `/blog/${post.slug}/`,
-        content: renderPost(post, { prev: posts[i + 1], next: posts[i - 1] }),
+        socialImagePath: post.socialImagePath,
+        content: renderPost(post, {
+          prev: posts[i + 1],
+          next: posts[i - 1],
+          related: getRelatedPosts(post, posts),
+        }),
         jsonLd: renderJsonLd(postStructuredData(post)),
         ogType: "article",
         postDate: post.date,
@@ -1247,6 +1303,27 @@ function build() {
 </feed>
 `
   )
+
+  const jsonFeed = {
+    version: "https://jsonfeed.org/version/1.1",
+    title: site.title,
+    home_page_url: `${site.url}/`,
+    feed_url: `${site.url}/feed.json`,
+    description: site.description,
+    language: "en-US",
+    authors: [{ name: site.author, url: `${site.url}/` }],
+    items: posts.map((post) => ({
+      id: `${site.url}/blog/${post.slug}/`,
+      url: `${site.url}/blog/${post.slug}/`,
+      title: post.title,
+      content_html: post.html,
+      summary: post.description,
+      date_published: isoDate(post.date),
+      tags: post.tags.map((tag) => tag.label),
+      image: toAbsoluteUrl(post.socialImagePath),
+    })),
+  }
+  fs.writeFileSync(path.join(distDir, "feed.json"), `${JSON.stringify(jsonFeed, null, 2)}\n`)
 
   fs.writeFileSync(
     path.join(distDir, "404.html"),

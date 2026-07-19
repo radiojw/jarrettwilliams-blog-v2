@@ -2,6 +2,7 @@ import fs from "node:fs"
 import path from "node:path"
 import crypto from "node:crypto"
 import { createSocialCardPng } from "./make-social-card.mjs"
+import { pathToFileURL } from "node:url"
 
 const rootDir = process.cwd()
 const contentDir = path.join(rootDir, "content", "posts")
@@ -1435,4 +1436,8 @@ function build() {
   console.log(`Built ${posts.length} posts into ${distDir}`)
 }
 
-build()
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  build()
+}
+
+export { renderInlineMarkdown, sanitizeHtml }

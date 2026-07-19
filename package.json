@@ -5,7 +5,8 @@
   "description": "Static blog site generator for jarrettwilliams.com",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "new-post": "node scripts/new-post.mjs"
+    "new-post": "node scripts/new-post.mjs",
+    "test": "node --test test/*.test.mjs"
   },
   "engines": {
     "node": ">=20"

@@ -29,6 +29,7 @@ const site = {
 }
 
 const consentStorageKey = "jarrett_cookie_choice"
+const themeStorageKey = "theme"
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true })
@@ -592,7 +593,9 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
     <meta name="twitter:title" content="${escapeHtml(title)}" />
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${socialImageUrl}" />
-    <meta name="theme-color" content="#0a0b10" />
+    <meta name="theme-color" content="#f7f3ea" media="(prefers-color-scheme: light)" data-theme-color="light" />
+    <meta name="theme-color" content="#0a0b10" media="(prefers-color-scheme: dark)" data-theme-color="dark" />
+    <script src="/assets/${site.themeFilename}"></script>
     <link rel="preload" href="/assets/fonts/inter-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/assets/fonts/source-serif-4-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -615,6 +618,10 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
           <a href="/"${canonicalPath === "" ? ' aria-current="page"' : ""}>Home</a>
           <a href="/blog/"${/^\/(blog|tags)\//.test(canonicalPath) ? ' aria-current="page"' : ""}>Blog</a>
           <a href="/about/"${canonicalPath === "/about/" ? ' aria-current="page"' : ""}>About</a>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false" title="Toggle color theme">
+            <span aria-hidden="true" data-theme-icon>◐</span>
+            <span class="visually-hidden">Dark theme</span>
+          </button>
         </nav>
       </header>
       <main class="site-main">
@@ -987,6 +994,93 @@ function renderCookies() {
   `
 }
 
+// Runs before the stylesheet so a saved theme is applied before first paint.
+// The button is progressively enhanced and remains hidden when JavaScript is off.
+function buildThemeScript() {
+  return `(() => {
+  const storageKey = ${JSON.stringify(themeStorageKey)};
+  const root = document.documentElement;
+  const lightQuery = window.matchMedia("(prefers-color-scheme: light)");
+  const themeMedia = {
+    light: "(prefers-color-scheme: light)",
+    dark: "(prefers-color-scheme: dark)"
+  };
+
+  const readStoredTheme = () => {
+    try {
+      const value = localStorage.getItem(storageKey);
+      return value === "light" || value === "dark" ? value : "";
+    } catch {
+      return "";
+    }
+  };
+
+  const resolvedTheme = () => root.dataset.theme || (lightQuery.matches ? "light" : "dark");
+
+  const syncThemeColors = (explicitTheme) => {
+    document.querySelectorAll('meta[name="theme-color"][data-theme-color]').forEach((meta) => {
+      const metaTheme = meta.getAttribute("data-theme-color");
+      meta.media = explicitTheme
+        ? (metaTheme === explicitTheme ? "all" : "not all")
+        : themeMedia[metaTheme];
+    });
+  };
+
+  const syncControl = () => {
+    const button = document.querySelector("[data-theme-toggle]");
+    if (!button) return;
+    const dark = resolvedTheme() === "dark";
+    button.setAttribute("aria-pressed", String(dark));
+    button.title = dark ? "Use light theme" : "Use dark theme";
+    const icon = button.querySelector("[data-theme-icon]");
+    if (icon) icon.textContent = dark ? "☾" : "☀";
+  };
+
+  const storedTheme = readStoredTheme();
+  if (storedTheme) root.dataset.theme = storedTheme;
+  syncThemeColors(storedTheme);
+  root.dataset.themeReady = "";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const button = document.querySelector("[data-theme-toggle]");
+    syncControl();
+
+    if (button) {
+      button.addEventListener("click", () => {
+        const nextTheme = resolvedTheme() === "dark" ? "light" : "dark";
+        root.dataset.theme = nextTheme;
+        try {
+          localStorage.setItem(storageKey, nextTheme);
+        } catch {}
+        syncThemeColors(nextTheme);
+        syncControl();
+      });
+    }
+
+    const handleSystemTheme = () => {
+      if (!root.dataset.theme) syncControl();
+    };
+    if (lightQuery.addEventListener) {
+      lightQuery.addEventListener("change", handleSystemTheme);
+    } else {
+      lightQuery.addListener(handleSystemTheme);
+    }
+  });
+
+  window.addEventListener("storage", (event) => {
+    if (event.key !== storageKey) return;
+    const nextTheme = event.newValue === "light" || event.newValue === "dark" ? event.newValue : "";
+    if (nextTheme) {
+      root.dataset.theme = nextTheme;
+    } else {
+      delete root.dataset.theme;
+    }
+    syncThemeColors(nextTheme);
+    syncControl();
+  });
+})();`
+}
+
 function buildConsentScript() {
   return `(() => {
   const storageKey = ${JSON.stringify(consentStorageKey)};
@@ -1118,6 +1212,7 @@ function build() {
   ensureDir(assetsDir)
   
   // Hash long-lived assets so they can be served immutable (see _headers).
+  site.themeFilename = writeHashedAsset("theme.js", buildThemeScript())
   site.cssFilename = writeHashedAsset("styles.css", fs.readFileSync(stylesPath, "utf8"))
   site.consentFilename = writeHashedAsset("consent.js", buildConsentScript())
 

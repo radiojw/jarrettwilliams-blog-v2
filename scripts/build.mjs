@@ -605,6 +605,7 @@ function pageTemplate({ title, description, content, canonicalPath, socialImageP
     <link rel="stylesheet" href="/assets/${site.cssFilename}" />
     <script src="/assets/${site.consentFilename}" defer></script>
     <script src="/assets/${site.searchFilename}" defer></script>
+    <script src="/umami/script.js" data-website-id="c4abad08-fe55-4891-a4d8-854da00cee7a" defer></script>
     <script type="speculationrules" src="/assets/${site.speculationFilename}"></script>
     ${jsonLd}
   </head>

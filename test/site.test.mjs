@@ -322,6 +322,9 @@ test("every internal HTML href and src resolves inside dist", () => {
 
       const resolved = new URL(rawReference, pageUrlForHtml(htmlPath))
       if (resolved.origin !== "https://jarrettwilliams.com") continue
+      // /umami/* is reverse-proxied by Caddy to the analytics container at
+      // runtime; it never exists inside dist.
+      if (resolved.pathname.startsWith("/umami/")) continue
 
       const target = localFileForUrl(resolved)
       assert.ok(

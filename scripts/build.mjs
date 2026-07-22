@@ -666,7 +666,7 @@ function renderPostCard(post, options = {}) {
   )
   return `<article class="post-card${featured}" data-search-text="${searchText}">
     <div class="post-card-meta">
-      <time datetime="${post.date}">${formatDate(post.date)}</time>
+      <time datetime="${escapeHtml(post.date)}">${formatDate(post.date)}</time>
       <span class="dot" aria-hidden="true">&middot;</span>
       <span>${post.readingMinutes} min read</span>
     </div>
@@ -810,7 +810,7 @@ function renderPost(post, neighbors = {}) {
         <p class="eyebrow">Article</p>
         <h1>${escapeHtml(post.title)}</h1>
         <div class="post-meta">
-          <time datetime="${post.date}">${formatDate(post.date)}</time>
+          <time datetime="${escapeHtml(post.date)}">${formatDate(post.date)}</time>
           <span class="dot" aria-hidden="true">&middot;</span>
           <span>${post.readingMinutes} min read</span>
         </div>

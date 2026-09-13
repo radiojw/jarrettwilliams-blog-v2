@@ -22,10 +22,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -39,16 +39,15 @@ jobs:
       - name: Build static site
         run: npm run build
 
-      # Deploys are handled by the pull-based systemd timer on the VPS
-      # (/srv/deploy). The SSH deploy steps below only run on a manual dispatch,
-      # so pushes still get test + build validation without the flaky SSH rsync.
+      # Primary deploys: pull-deploy.timer on Caddy VM (.177) via /srv/deploy.
+      # SSH steps below are manual fallback only.
       - name: Load deploy key
         if: github.event_name == 'workflow_dispatch'
-        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Trust VPS host key
+      - name: Trust Caddy host key
         if: github.event_name == 'workflow_dispatch'
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -57,8 +56,8 @@ jobs:
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Deploy to VPS
+      - name: Deploy to Caddy VM
         if: github.event_name == 'workflow_dispatch'
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
-        run: rsync -av --delete dist/ "debian@$VPS_HOST:/srv/sites/jarrettwilliams.com/public/"
+        run: rsync -av --delete dist/ "root@$VPS_HOST:/srv/sites/jarrettwilliams.com/public/"

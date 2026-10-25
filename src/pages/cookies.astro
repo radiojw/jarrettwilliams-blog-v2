@@ -1,0 +1,30 @@
+---
+import Base from "../layouts/Base.astro"
+import { pageJsonLd } from "../lib/seo"
+import { site } from "../lib/site"
+
+const description = "Cookie policy for jarrettwilliams.com."
+---
+
+<Base
+  title={`Cookies — ${site.title}`}
+  description={description}
+  robots="noindex,follow,max-image-preview:large"
+  jsonLd={pageJsonLd(`Cookies — ${site.title}`, "/cookies/", description)}
+>
+  <article class="prose">
+    <p class="kicker page-kicker">Cookies</p>
+    <h1>Cookie policy</h1>
+    <p>This site is a static publishing site and keeps its data collection intentionally light.</p>
+    <p>
+      The site may use essential browser storage to remember choices such as your cookie preference. That storage helps
+      the site avoid showing the same prompt on every visit.
+    </p>
+    <p>No advertising, profiling, or third-party tracking cookies are intentionally loaded by this site today.</p>
+    <p>
+      If optional analytics or similar tools are added later, they should only run after an accepted choice and this
+      page should be updated to describe them clearly.
+    </p>
+    <p>You can change your choice at any time by clearing site storage in your browser and revisiting the site.</p>
+  </article>
+</Base>

@@ -1,0 +1,26 @@
+---
+import Base from "../layouts/Base.astro"
+import { pageJsonLd } from "../lib/seo"
+import { site } from "../lib/site"
+
+const description = "Privacy policy for jarrettwilliams.com."
+---
+
+<Base
+  title={`Privacy — ${site.title}`}
+  description={description}
+  robots="noindex,follow,max-image-preview:large"
+  jsonLd={pageJsonLd(`Privacy — ${site.title}`, "/privacy/", description)}
+>
+  <article class="prose">
+    <p class="kicker page-kicker">Privacy</p>
+    <h1>Privacy policy</h1>
+    <p>This site is a simple content site. It is not built around accounts, comments, or user dashboards.</p>
+    <p>
+      Basic server logs or analytics may be collected by the hosting platform to keep the site running and understand
+      general traffic patterns.
+    </p>
+    <p>No personal information is intentionally sold or shared for advertising purposes through this site.</p>
+    <p>If that changes, this page should be updated to reflect it clearly.</p>
+  </article>
+</Base>

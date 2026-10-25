@@ -299,7 +299,7 @@ export function writeSocialCard(outputPath, options) {
 const modulePath = fileURLToPath(import.meta.url)
 if (process.argv[1] && path.resolve(process.argv[1]) === modulePath) {
   const rootDir = path.resolve(path.dirname(modulePath), "..")
-  const outputPath = path.join(rootDir, "src", "images", "social-card.png")
+  const outputPath = path.join(rootDir, "public", "assets", "images", "social-card.png")
   const bytes = writeSocialCard(outputPath, {
     title: "Jarrett Williams",
     kicker: "FIELD NOTES",

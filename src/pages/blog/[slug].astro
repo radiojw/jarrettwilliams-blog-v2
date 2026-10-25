@@ -1,0 +1,115 @@
+---
+import { render } from "astro:content"
+import Base from "../../layouts/Base.astro"
+import NoteCard from "../../components/NoteCard.astro"
+import { formatDate, getPosts, isoDate, parseTags, readingMinutes, relatedPosts, socialImageFor } from "../../lib/posts"
+import { postJsonLd } from "../../lib/seo"
+import { site } from "../../lib/site"
+
+export async function getStaticPaths() {
+  const posts = await getPosts()
+  return posts.map((post) => ({
+    params: { slug: post.data.slug },
+    props: { post },
+  }))
+}
+
+const { post } = Astro.props
+const posts = await getPosts()
+const index = posts.findIndex((entry) => entry.data.slug === post.data.slug)
+const older = posts[index + 1]
+const newer = posts[index - 1]
+const related = relatedPosts(post, posts)
+const tags = parseTags(post.data.tags)
+const { Content, headings } = await render(post)
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3)
+const minutes = readingMinutes(post.body)
+---
+
+<Base
+  title={`${post.data.title} — ${site.title}`}
+  description={post.data.description}
+  ogType="article"
+  image={socialImageFor(post.data.slug)}
+  publishedTime={isoDate(post.data.date)}
+  jsonLd={postJsonLd(post)}
+>
+  <article class="post-article">
+    <header>
+      <p class="kicker page-kicker">Note</p>
+      <h1>{post.data.title}</h1>
+      <div class="post-meta">
+        <time datetime={post.data.date}>{formatDate(post.data.date)}</time>
+        <span>{minutes} min read</span>
+        {
+          tags.map((tag) => (
+            <a href={`/tags/${tag.slug}/`}>{tag.label}</a>
+          ))
+        }
+      </div>
+    </header>
+    {
+      toc.length >= 3 && (
+        <nav class="toc" aria-label="On this page">
+          <p class="kicker">On this page</p>
+          <ol>
+            {toc.map((heading) => (
+              <li class={`toc-depth-${heading.depth}`}>
+                <a href={`#${heading.slug}`}>{heading.text}</a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )
+    }
+    <div class="post-body">
+      <Content />
+    </div>
+    <footer class="post-footer">
+      {
+        tags.length > 0 && (
+          <div class="post-tags">
+            {tags.map((tag) => (
+              <a href={`/tags/${tag.slug}/`}>{tag.label}</a>
+            ))}
+          </div>
+        )
+      }
+      {
+        (older || newer) && (
+          <nav class="prevnext" aria-label="More notes">
+            {older ? (
+              <a href={`/blog/${older.data.slug}/`}>
+                <span class="prevnext-label">Older</span>
+                <span class="prevnext-title">{older.data.title}</span>
+              </a>
+            ) : (
+              <span></span>
+            )}
+            {newer ? (
+              <a class="prevnext-next" href={`/blog/${newer.data.slug}/`}>
+                <span class="prevnext-label">Newer</span>
+                <span class="prevnext-title">{newer.data.title}</span>
+              </a>
+            ) : (
+              <span></span>
+            )}
+          </nav>
+        )
+      }
+      {
+        related.length > 0 && (
+          <section class="related" aria-labelledby="related-heading">
+            <h2 id="related-heading">Related</h2>
+            <div class="note-list">
+              {related.map((entry) => (
+                <NoteCard post={entry} headingLevel={3} />
+              ))}
+            </div>
+          </section>
+        )
+      }
+      <a class="back-link" href="/blog/">All notes</a>
+    </footer>
+  </article>
+</Base>

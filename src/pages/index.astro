@@ -1,0 +1,37 @@
+---
+import Base from "../layouts/Base.astro"
+import NoteCard from "../components/NoteCard.astro"
+import RackArt from "../components/RackArt.astro"
+import { getPosts } from "../lib/posts"
+import { homeJsonLd } from "../lib/seo"
+import { site } from "../lib/site"
+
+const posts = (await getPosts()).slice(0, 3)
+---
+
+<Base title={`${site.title} — Blog`} description={site.lede} jsonLd={homeJsonLd()} showMasthead={false}>
+  <div class="spread">
+    <section class="intro">
+      <a class="wordmark" href="/">Jarrett Williams</a>
+      <h1 class="display">Field notes on infrastructure, identity, and keeping systems stable.</h1>
+      <hr class="hairline" />
+      <p class="lede">{site.lede}</p>
+      <div class="about-blurb">
+        <RackArt />
+        <div>
+          <p class="kicker"><a href="/about/">About Jarrett</a></p>
+          <p>
+            Staff Systems Engineer writing about identity systems, operations, and infrastructure. Notes from real
+            migrations, identity cleanup, datacenter visits, and the practical fixes that rarely fit neatly into vendor
+            docs.
+          </p>
+        </div>
+      </div>
+    </section>
+    <section aria-label="Latest notes">
+      <div class="note-list">
+        {posts.map((post) => <NoteCard post={post} />)}
+      </div>
+    </section>
+  </div>
+</Base>

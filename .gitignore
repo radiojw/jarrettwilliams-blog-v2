@@ -1,5 +1,8 @@
 dist/
 node_modules/
+.astro/
+public/assets/images/social-card-*.png
+public/assets/images/social-manifest.json
 Thumbs.db
 .DS_Store
 .wrangler/

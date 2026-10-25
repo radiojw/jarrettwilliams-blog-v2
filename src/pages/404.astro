@@ -1,0 +1,22 @@
+---
+import Base from "../layouts/Base.astro"
+import { pageJsonLd } from "../lib/seo"
+import { site } from "../lib/site"
+
+const description = "The page you were looking for is not here."
+---
+
+<Base
+  title={`Not found — ${site.title}`}
+  description={description}
+  robots="noindex,nofollow"
+  canonicalPath="/404.html"
+  jsonLd={pageJsonLd(`Not found — ${site.title}`, "/404.html", description)}
+>
+  <article class="prose">
+    <p class="kicker page-kicker">404</p>
+    <h1>Page not found</h1>
+    <p>{description}</p>
+    <p><a class="button button-primary" href="/">Back home</a></p>
+  </article>
+</Base>

@@ -1,0 +1,27 @@
+---
+import { formatDate, parseTags, type Post } from "../lib/posts"
+
+interface Props {
+  post: Post
+  searchable?: boolean
+  headingLevel?: 2 | 3
+}
+
+const { post, searchable = false, headingLevel = 2 } = Astro.props
+const tags = parseTags(post.data.tags)
+const kicker = tags[0]
+const Heading = headingLevel === 3 ? "h3" : "h2"
+const searchText = [post.data.title, post.data.description, ...tags.map((tag) => tag.label)].join(" ").toLowerCase()
+---
+
+<article class="note-card" data-search-text={searchable ? searchText : undefined}>
+  <div class="note-card-top">
+    <time datetime={post.data.date}>{formatDate(post.data.date)}</time>
+    {kicker && <a class="kicker" href={`/tags/${kicker.slug}/`}>{kicker.label}</a>}
+  </div>
+  <Heading class="note-card-title">
+    <a href={`/blog/${post.data.slug}/`}>{post.data.title}</a>
+  </Heading>
+  <p class="note-card-excerpt">{post.data.description}</p>
+  <a class="read-more" href={`/blog/${post.data.slug}/`}>Read more <span aria-hidden="true">→</span></a>
+</article>

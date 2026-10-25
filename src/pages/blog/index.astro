@@ -1,0 +1,40 @@
+---
+import Base from "../../layouts/Base.astro"
+import NoteCard from "../../components/NoteCard.astro"
+import { allTags, getPosts } from "../../lib/posts"
+import { blogJsonLd } from "../../lib/seo"
+import { site } from "../../lib/site"
+
+const posts = await getPosts()
+const tags = allTags(posts)
+const description =
+  "Real notes from endpoint work, datacenter visits, identity cleanup, and the systems work that usually has to be figured out in motion."
+---
+
+<Base title={`Notes — ${site.title}`} description={description} jsonLd={blogJsonLd(posts)}>
+  <section class="page">
+    <p class="kicker page-kicker">Notes</p>
+    <h1>Field notes</h1>
+    <p class="page-lede">{description}</p>
+    <div class="search" data-search>
+      <label class="visually-hidden" for="site-search">Search notes</label>
+      <input id="site-search" class="search-input" type="search" placeholder="Search notes" autocomplete="off" data-search-input />
+      <p class="search-empty" data-search-empty hidden>No notes match your search.</p>
+    </div>
+    {
+      tags.length > 0 && (
+        <nav class="tag-filter" aria-label="Filter by topic">
+          <span class="tag-filter-label">Topics</span>
+          {tags.map((tag) => (
+            <a href={`/tags/${tag.slug}/`}>
+              {tag.label} <span class="tag-count">{tag.count}</span>
+            </a>
+          ))}
+        </nav>
+      )
+    }
+    <div class="note-list" data-search-grid>
+      {posts.map((post) => <NoteCard post={post} searchable />)}
+    </div>
+  </section>
+</Base>

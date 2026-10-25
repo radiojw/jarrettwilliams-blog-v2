@@ -1,0 +1,56 @@
+---
+import Base from "../layouts/Base.astro"
+import RackArt from "../components/RackArt.astro"
+import { pageJsonLd } from "../lib/seo"
+import { site } from "../lib/site"
+
+const description = "A working notebook for infrastructure problems, from Jarrett Williams."
+---
+
+<Base title={`About — ${site.title}`} description={description} jsonLd={pageJsonLd(`About — ${site.title}`, "/about/", description)}>
+  <article class="prose">
+    <p class="kicker page-kicker">About</p>
+    <h1>A working notebook for infrastructure problems.</h1>
+    <div class="about-blurb">
+      <RackArt />
+      <div>
+        <p>
+          This site is a running notebook for the operational side of IT — the systems engineering work behind Azure
+          environments, endpoint administration, and the practical fixes that rarely fit neatly into vendor docs.
+        </p>
+        <p>
+          I work across IT Operations and as a Staff Systems Engineer, so the write-ups here tend to come from real
+          migrations, identity cleanup, infrastructure decisions, automation, and field notes from datacenter visits.
+        </p>
+      </div>
+    </div>
+    <h2>Professional focus and experience</h2>
+    <p>
+      The thread that runs through most of my work is building practical systems that hold up under real operational
+      pressure, not just in ideal lab conditions.
+    </p>
+    <ul>
+      <li>
+        <strong>Enterprise operations:</strong> Over 15 years of infrastructure experience across cloud environments, networking, data center operations, and highly regulated industries.
+      </li>
+      <li>
+        <strong>Infrastructure strategy:</strong> Led architecture for healthcare systems, including enterprise network, voice, security, and storage administration.
+      </li>
+      <li>
+        <strong>Identity and cloud modernization:</strong> Managed migrations from legacy platforms, identity consolidation, and Okta deployments in banking environments.
+      </li>
+      <li>
+        <strong>Scale and automation:</strong> Built operational programs at Amazon, from deployment strategy for early Amazon Go systems to device-lab infrastructure and vendor support workflows.
+      </li>
+      <li>
+        <strong>Data center engineering:</strong> Delivered large-scale infrastructure improvements such as campus data center commissioning, phone-system migrations, and security/ITSM process rollouts.
+      </li>
+    </ul>
+    <h2>About this blog</h2>
+    <p>
+      This site is built as a static publishing site to keep it fast, light, and private. It doesn't track you, load
+      dynamic ads, or require cookies for reading. The goal is simple: leave behind useful, tested write-ups that save
+      someone else a few hours of trial, error, and tab-hoarding.
+    </p>
+  </article>
+</Base>

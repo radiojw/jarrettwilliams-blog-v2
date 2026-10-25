@@ -1,0 +1,16 @@
+{
+  "prefetch": [
+    {
+      "tag": "prefetch-speculations",
+      "where": { "href_matches": "/*" },
+      "eagerness": "moderate"
+    }
+  ],
+  "prerender": [
+    {
+      "tag": "prerender-speculations",
+      "where": { "href_matches": "/*" },
+      "eagerness": "moderate"
+    }
+  ]
+}

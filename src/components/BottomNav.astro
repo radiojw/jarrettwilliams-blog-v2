@@ -1,0 +1,31 @@
+---
+const path = Astro.url.pathname
+const items = [
+  { href: "/", label: "Blog", current: path === "/" },
+  { href: "/about/", label: "About", current: path === "/about/" },
+  {
+    href: "/blog/",
+    label: "Notes",
+    current: path.startsWith("/blog/") || path.startsWith("/tags/"),
+  },
+  { href: "/feed.xml", label: "RSS", current: false },
+]
+---
+
+<nav class="bottom-nav" aria-label="Primary">
+  <ul>
+    {
+      items.map((item) => (
+        <li>
+          <a href={item.href} aria-current={item.current ? "page" : undefined}>
+            {item.label}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+  <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false">
+    <span data-theme-icon aria-hidden="true">Dark</span>
+    <span class="visually-hidden">Use dark theme</span>
+  </button>
+</nav>
